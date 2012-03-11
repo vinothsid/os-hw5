@@ -54,6 +54,7 @@ static int xmp_access(const char *path, int mask)
 	int res;
 	char spath[500];
 	strcpy(spath,"/home/gokul/Desktop/serverfilesystem");
+
 	strcat(spath,path);
 	res = access(spath, mask);
 	if (res == -1)

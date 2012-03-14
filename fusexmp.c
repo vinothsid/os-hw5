@@ -31,13 +31,14 @@
 #include <sys/xattr.h>
 #endif
 
-
+#include "log_fs.h"
+#include "Cache.h"
 
 static int xmp_getattr(const char *path, struct stat *stbuf)
 {
 	int res;
 	char spath[500];
-        strcpy(spath,"/home/gokul/Desktop/serverfilesystem");
+        strcpy(spath,"/home/vino/Desktop/serverfilesystem");
         strcat(spath,path);
 	res = lstat(spath, stbuf);
 
@@ -53,7 +54,7 @@ static int xmp_access(const char *path, int mask)
 {
 	int res;
 	char spath[500];
-	strcpy(spath,"/home/gokul/Desktop/serverfilesystem");
+	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
 
 	strcat(spath,path);
 	res = access(spath, mask);
@@ -67,7 +68,7 @@ static int xmp_readlink(const char *path, char *buf, size_t size)
 {
 	int res;
 	char spath[500];
-	strcpy(spath,"/home/gokul/Desktop/serverfilesystem");
+	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
 	strcat(spath,path);
 	res = readlink(spath, buf, size - 1);
 	if (res == -1)
@@ -87,7 +88,7 @@ static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	(void) offset;
 	(void) fi;
 	char spath[500];
-	strcpy(spath,"/home/gokul/Desktop/serverfilesystem");
+	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
 	strcat(spath,path);
 	dp = opendir(spath);
 	if (dp == NULL)
@@ -111,7 +112,7 @@ static int xmp_mknod(const char *path, mode_t mode, dev_t rdev)
 {
 	int res;
 	char spath[500];
-	strcpy(spath,"/home/gokul/Desktop/serverfilesystem");
+	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
 	strcat(spath,path);
 	/* On Linux this could just be 'mknod(path, mode, rdev)' but this
 	   is more portable */
@@ -133,7 +134,7 @@ static int xmp_mkdir(const char *path, mode_t mode)
 {
 	int res;
 	char spath[500];
-	strcpy(spath,"/home/gokul/Desktop/serverfilesystem");
+	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
 	strcat(spath,path);
 	res = mkdir(spath, mode);
 	if (res == -1)
@@ -146,7 +147,7 @@ static int xmp_unlink(const char *path)
 {
 	int res;
 	char spath[500];
-	strcpy(spath,"/home/gokul/Desktop/serverfilesystem");
+	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
 	strcat(spath,path);
 	res = unlink(spath);
 	if (res == -1)
@@ -159,7 +160,7 @@ static int xmp_rmdir(const char *path)
 {
 	int res;
 	char spath[500];
-	strcpy(spath,"/home/gokul/Desktop/serverfilesystem");
+	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
 	strcat(spath,path);
 	res = rmdir(spath);
 	if (res == -1)
@@ -205,7 +206,7 @@ static int xmp_chmod(const char *path, mode_t mode)
 {
 	int res;
 	char spath[500];
-	strcpy(spath,"/home/gokul/Desktop/serverfilesystem");
+	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
 	strcat(spath,path);
 	res = chmod(spath, mode);
 	if (res == -1)
@@ -218,7 +219,7 @@ static int xmp_chown(const char *path, uid_t uid, gid_t gid)
 {
 	int res;
 	char spath[500];
-	strcpy(spath,"/home/gokul/Desktop/serverfilesystem");
+	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
 	strcat(spath,path);
 	res = lchown(spath, uid, gid);
 	if (res == -1)
@@ -231,7 +232,7 @@ static int xmp_truncate(const char *path, off_t size)
 {
 	int res;
 	char spath[500];
-	strcpy(spath,"/home/gokul/Desktop/serverfilesystem");
+	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
 	strcat(spath,path);
 	res = truncate(spath, size);
 	if (res == -1)
@@ -250,7 +251,7 @@ static int xmp_utimens(const char *path, const struct timespec ts[2])
 	tv[1].tv_sec = ts[1].tv_sec;
 	tv[1].tv_usec = ts[1].tv_nsec / 1000;
 	char spath[500];
-	strcpy(spath,"/home/gokul/Desktop/serverfilesystem");
+	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
 	strcat(spath,path);
 	res = utimes(spath, tv);
 	if (res == -1)
@@ -263,7 +264,7 @@ static int xmp_open(const char *path, struct fuse_file_info *fi)
 {
 	int res;
 	char spath[500];
-	strcpy(spath,"/home/gokul/Desktop/serverfilesystem");
+	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
 	strcat(spath,path);
 	res = open(spath, fi->flags);
 	if (res == -1)
@@ -284,7 +285,7 @@ static int xmp_read(const char *path, char *buf, size_t size, off_t offset,
 
 	(void) fi;
 	char spath[500];
-	strcpy(spath,"/home/gokul/Desktop/serverfilesystem");
+	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
 	strcat(spath,path);
 	fd = open(spath, O_RDONLY);
 	if (fd == -1)
@@ -325,7 +326,7 @@ static int xmp_write(const char *path, const char *buf, size_t size,
 	int res;
 	char spath[500];
 	
-	strcpy(spath,"/home/gokul/Desktop/serverfilesystem");
+	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
 	strcat(spath,path);
 	(void) fi;
 	fd = open(spath, O_WRONLY);
@@ -333,7 +334,7 @@ static int xmp_write(const char *path, const char *buf, size_t size,
 		return -errno;
 
         char tmp[1000];
-	strcpy(tmp,"gokul");
+	strcpy(tmp,"vino");
 	strcpy(buf,tmp);
 	res = pwrite(fd, buf, size, offset);
         
@@ -348,7 +349,7 @@ static int xmp_statfs(const char *path, struct statvfs *stbuf)
 {
 	int res;
 	char spath[500];
-	strcpy(spath,"/home/gokul/Desktop/serverfilesystem");
+	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
 	strcat(spath,path);
 	res = statvfs(spath, stbuf);
 	if (res == -1)

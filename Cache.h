@@ -1,28 +1,57 @@
 #ifndef LOG_FS_H
 #include "log_fs.h"
 #endif
+#include <stdbool.h>
+#define METADATA_CACHE 1
+#define WRITE_BUFFER 2
 
-int cache_size;
-int cache_block_size;
+/*
+1) Cache for storing the write buffer
+2) Cache for storing the in-memory meta data
+*/
 
+int page_size;
 typedef struct cache_block {
-	struct lfs_meta_data * mdata;
-	int free_flag;
+	MDATA * mdata;
+	bool free_flag;
 	char *buf;
 	int offset;
 	int lru_counter;
 } *CBLK ;
 
-struct cache {
-	struct cache_block *cblocks;
-};
+typedef struct cache {
+	CBLK cblocks;
+	int cache_size;
+	int cache_block_size;
+	char type;
+} *CACHE;
 
 
-void init_cache(int size,int block_size);
+/*
+Allocate memory and return CACHE .
+type : meta_data cache or write_buffer
+block_size must be multiple of PAGE_SIZE
+size must be multiple of block_size
+*/
+CACHE  create_cache(int size,int block_size,char type); 
 
-CBLK  alloc_cache_block(struct lfs_meta_data  );
 
-CBLK get_free_block();
+int  write_cache_block(CACHE c,MDATA *meta_data,char *in_buf,int buf_len  );
+
+static CBLK get_free_cache_block(CACHE c);
+
+int read_cache_block(CACHE c,MDATA *meta_data,char *out_buf,int buf_len);
+
+static int update_lru(CACHE c,CBLK cache_cblk );
+
+int update_cache_block(CACHE c,MDATA *meta_data,char *add_buf,int buf_len);
+
+static int find_cache_block(CACHE c,MDATA *meta_data);
+
+static int evict_cache_block(CACHE c,CBLK cache_blk);
+
+
+static int init_cache_block(CBLK cache_blk,int block_size,char type);
 
 
 

@@ -30,15 +30,21 @@ typedef struct cache {
 /*
 Allocate memory and return CACHE .
 type : meta_data cache or write_buffer
+
+write_buffer:
 block_size must be multiple of PAGE_SIZE
 size must be multiple of block_size
+
+meta_data_cache:
+block_size doesnt matter . But something should be passed
+size - number of elements
 */
 CACHE  create_cache(int size,int block_size,char type); 
 
 
 int  write_cache_block(CACHE c,MDATA *meta_data,char *in_buf,int buf_len  );
 
-static CBLK get_free_cache_block(CACHE c);
+CBLK get_free_cache_block(CACHE c);
 
 int read_cache_block(CACHE c,MDATA *meta_data,char *out_buf,int buf_len);
 

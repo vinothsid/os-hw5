@@ -8,18 +8,34 @@ CACHE  create_cache(int size,int block_size,char type) {
 	
 	page_size = sysconf(_SC_PAGESIZE);
 
-	if(block_size%page_size != 0 ) {
-		fprintf(stderr,"ERROR:block_size must be multiple of page_size: %d\n",page_size);
-		exit(2);
+	int numBlocks;
+
+	switch(type) {
+		case METADATA_CACHE:
+			numBlocks = size;
+			break;
+		case WRITE_BUFFER:
+			if(block_size%page_size != 0 ) {
+				fprintf(stderr,"ERROR:block_size must be multiple of page_size: %d\n",page_size);
+				exit(2);
+			}
+
+			if( size%block_size != 0 ) {
+				fprintf(stderr,"ERROR:size must be multiple of block_size: %d\n",block_size);
+				exit(3);
+			}
+
+			numBlocks = size/block_size;
+
+
+			break;
+		default:
+
+			break;
+	
 	}
-
-	if( size%block_size != 0 ) {
-		fprintf(stderr,"ERROR:size must be multiple of block_size: %d\n",block_size);
-		exit(3);
-	}
-
-	int numBlocks = size/block_size;
-
+	
+	
 	CACHE newCache;
 
 	newCache = malloc(sizeof(struct cache));
@@ -61,12 +77,15 @@ static int init_cache_block(CBLK cache_blk,int block_size,char type) {
 		
 
 }
+
 int  write_cache_block(CACHE c,MDATA *meta_data,char *in_buf,int buf_len  ) {
 
 }
 
-static CBLK get_free_cache_block(CACHE c) {
+CBLK get_free_cache_block(CACHE c) {
 
+	return c->cblocks+0;
+	
 }
 
 int read_cache_block(CACHE c,MDATA *meta_data,char *out_buf,int buf_len) {
@@ -89,8 +108,52 @@ static int evict_cache_block(CACHE c,CBLK cache_blk) {
 
 }
 
+void print_cache_block(CBLK cblock) {
+	
+	if(cblock->mdata != NULL) {
+		printf("File Name: %s\n",cblock->mdata->file_name);
+		printf("Number of paths: %d\n",cblock->mdata->num_paths);
+		int i=0;
+		for(i=0;i < cblock->mdata->num_paths;i++) {
+			printf("%s\n",cblock->mdata->path[i]);
+		} 
+	
+	} else {
+		fprintf(stderr,"ERROR:mdata is NULL\n");
+	}
+
+	printf("Free flag: %d\n",cblock->free_flag);
+	printf("lru_counter:%d\n",cblock->lru_counter);
+	if( cblock->buf!=NULL ) {
+		printf("Offset : %d\n",cblock->offset);
+		printf("Buffer content:%s\n",cblock->buf);
+	}
+}
+
+/*
 int main() {
 	CACHE buffer_cache = create_cache(4096*10,4096,WRITE_BUFFER);
 	
+	CACHE meta_data_cache = create_cache(100,1,METADATA_CACHE);
 
-}
+	CBLK new_block = get_free_cache_block(meta_data_cache);
+
+	strcpy(new_block->mdata->file_name,"file1.txt");
+
+	new_block->mdata->num_paths = 2;
+
+	strcpy(new_block->mdata->path[0],"/home/vino/lfs-store/16-03-2012/file1.txt-12:03-12:30");
+	strcpy(new_block->mdata->path[1],"/home/vino/lfs-store/16-03-2012/file1.txt-12:31-12:45");
+
+	print_cache_block(new_block);
+
+	CBLK new_wb_block = get_free_cache_block(buffer_cache);
+	new_wb_block->mdata = new_block->mdata;
+	strcpy(new_wb_block->buf,"Content 1");
+	new_wb_block->offset = 8;
+	new_wb_block->free_flag = false;
+	print_cache_block(new_wb_block);
+
+} */
+
+

@@ -26,7 +26,7 @@ CACHE  create_cache(int size,int block_size,char type) {
 			}
 
 			numBlocks = size/block_size;
-
+			
 
 			break;
 		default:
@@ -42,6 +42,9 @@ CACHE  create_cache(int size,int block_size,char type) {
 	assert(newCache!=NULL);
 
 	newCache->type = type;
+	newCache->num_blocks = numBlocks;
+	newCache->cache_block_size = block_size;
+
 	newCache->cblocks = malloc(sizeof(struct cache_block) * numBlocks );
 	assert(newCache->cblocks!=NULL);
 	int i=0;
@@ -79,35 +82,118 @@ static int init_cache_block(CBLK cache_blk,int block_size,char type) {
 }
 
 int  write_cache_block(CACHE c,MDATA *meta_data,char *in_buf,int buf_len  ) {
+	CBLK cblk = find_cache_block(c,meta_data);
+	if(cblk->offset+buf_len >= c->cache_block_size) {
+		return -1; // write the cache block to disk
+	} 
 
+	memcpy(cblk->buf + cblk->offset , in_buf,buf_len);
+	cblk->offset += buf_len;
+	update_lru(c,cblk);
+	return 0; 
 }
 
-CBLK get_free_cache_block(CACHE c) {
+CBLK get_free_cache_block(CACHE c , int *result) {
 
-	return c->cblocks+0;
+	int max=-1;
+	int index=-1;
+	int i=0;
+	for(i=0;i<c->num_blocks;i++) {
+		if( max < c->cblocks[i].lru_counter) {
+			max = c->cblocks[i].lru_counter;
+			index = i;
+		}
+	}
+
+/*
+	When no free blocks are present
+*/
+	if(c->cblocks[index].free_flag == false ) {
+		*result = WRITE_BACK;
+	} else {
+		*result = NORMAL;
+	}
+
+	c->cblocks[index].free_flag = false; // allocated
+#ifdef DEBUG_CACHE
+	printf("Returning block : %d\n",index);
+#endif
+	return c->cblocks+index; // if result == WRITE_BACK , write to disk then use the cache_block
 	
 }
 
-int read_cache_block(CACHE c,MDATA *meta_data,char *out_buf,int buf_len) {
+
+int read_cache_block(CACHE c,MDATA *meta_data,char *out_buf,int *buf_len ) {
+	CBLK cblk = find_cache_block(c,meta_data);
+	
+	if(cblk == NULL) {
+		return -1; // cache block not present in memory
+	}
+
+	strcpy(out_buf, cblk->buf);
+#ifdef DEBUG_CACHE
+	printf("read_cache_block() cache read:%s\n",cblk->buf);
+#endif
+	*buf_len = cblk->offset;
+	update_lru(c,cblk);
+	return 0;
+	
 
 }
 
-static int update_lru(CACHE c,CBLK cache_cblk ) {
+CBLK find_meta_data_block(CACHE c,char *file_name) {
+	if(c->type == METADATA_CACHE) {
+		int i=0;
+		for(i=0;i<c->num_blocks;i++) {
+			if(c->cblocks[i].free_flag == false && strcmp(c->cblocks[i].mdata->file_name,file_name) ==0 ) {
+				return c->cblocks+i;
+			}
+		}
+
+	} else {
+		fprintf(stderr,"ERROR:Wrong type of cache\n");
+		return NULL;
+	}
+
+	return NULL; // if NULL allocate new block
 
 }
 
+static int update_lru(CACHE c,CBLK cache_blk ) {
+	int i=0;
+
+	for(i=0;i<c->num_blocks;i++) {
+		if( c->cblocks+i != cache_blk && c->cblocks[i].lru_counter <= cache_blk->lru_counter) {
+//			printf("<<<< %d : %d >>>>\n",c->cblocks[i].lru_counter , cache_blk->lru_counter);	
+			c->cblocks[i].lru_counter = (c->cblocks[i].lru_counter+1)%c->num_blocks;
+		}
+	}
+
+	cache_blk->lru_counter = 0; 
+}
+
+/*
 int update_cache_block(CACHE c,MDATA *meta_data,char *add_buf,int buf_len) {
 
 }
+*/
+static CBLK find_cache_block(CACHE c,MDATA *meta_data) {
+	int i=0;
+	for(i=0;i<c->num_blocks;i++) {
+		if(c->cblocks[i].mdata == meta_data) {
+			return c->cblocks+i;
+		}
+	}
 
-static int find_cache_block(CACHE c,MDATA *meta_data) {
+	return NULL;
 
 }
 
+/*
 static int evict_cache_block(CACHE c,CBLK cache_blk) {
 
 }
-
+*/
 void print_cache_block(CBLK cblock) {
 	
 	if(cblock->mdata != NULL) {
@@ -130,13 +216,27 @@ void print_cache_block(CBLK cblock) {
 	}
 }
 
-/*
+void print_cache(CACHE c) {
+	int i=0;
+	for(i=0;i<c->num_blocks;i++) {
+		if(c->cblocks[i].free_flag == false) {
+			printf("Cache Block:%d\n",i);
+			print_cache_block(c->cblocks+i);
+			printf("===============\n");
+		}
+	}
+
+}
+
+
 int main() {
+
+	int result;
 	CACHE buffer_cache = create_cache(4096*10,4096,WRITE_BUFFER);
 	
 	CACHE meta_data_cache = create_cache(100,1,METADATA_CACHE);
 
-	CBLK new_block = get_free_cache_block(meta_data_cache);
+	CBLK new_block = get_free_cache_block(meta_data_cache,&result);
 
 	strcpy(new_block->mdata->file_name,"file1.txt");
 
@@ -145,15 +245,68 @@ int main() {
 	strcpy(new_block->mdata->path[0],"/home/vino/lfs-store/16-03-2012/file1.txt-12:03-12:30");
 	strcpy(new_block->mdata->path[1],"/home/vino/lfs-store/16-03-2012/file1.txt-12:31-12:45");
 
-	print_cache_block(new_block);
+	update_lru(meta_data_cache,new_block);
+	CBLK new_block2 = get_free_cache_block(meta_data_cache,&result);
 
-	CBLK new_wb_block = get_free_cache_block(buffer_cache);
+	strcpy(new_block2->mdata->file_name,"file2.txt");
+
+	new_block2->mdata->num_paths = 2;
+
+	strcpy(new_block2->mdata->path[0],"/home/vino/lfs-store/16-03-2012/file2.txt-12:03-12:30");
+	strcpy(new_block2->mdata->path[1],"/home/vino/lfs-store/16-03-2012/file2.txt-12:31-12:45");
+
+
+//	print_cache_block(new_block);
+
+	CBLK new_wb_block = get_free_cache_block(buffer_cache,&result);
 	new_wb_block->mdata = new_block->mdata;
-	strcpy(new_wb_block->buf,"Content 1");
-	new_wb_block->offset = 8;
-	new_wb_block->free_flag = false;
-	print_cache_block(new_wb_block);
 
-} */
+	char string[20] = "Content 1";
+	write_cache_block(buffer_cache,new_block->mdata,string,strlen(string));
+	//strcpy(new_wb_block->buf,"Content 1");
+	//new_wb_block->offset = 8;
+	//new_wb_block->free_flag = false;
+
+//	update_lru(buffer_cache,new_wb_block);
+
+//	print_cache_block(new_wb_block);
+	CBLK new_wb_block2 = get_free_cache_block(buffer_cache,&result);
+	new_wb_block2->mdata = new_block2->mdata;
+	strcpy(string,"Content 2");
+	write_cache_block(buffer_cache,new_block2->mdata,string,strlen(string));
+	write_cache_block(buffer_cache,new_block2->mdata,string,strlen(string));
+	
+
+	strcpy(string,"Content X");
+	write_cache_block(buffer_cache,new_block->mdata,string,strlen(string));
+//	strcpy(new_wb_block2->buf,"Content 2");
+//	new_wb_block2->offset = 8;
+//	new_wb_block2->free_flag = false;
+
+
+//	update_lru(buffer_cache,new_wb_block2);
+//	update_lru(buffer_cache,new_wb_block);
+//	print_cache(buffer_cache);
+	
+
+
+	printf("----------------\n");
+  //      update_lru(buffer_cache,new_wb_block);
+        print_cache(buffer_cache);
+	printf("------Meta data cache--------\n");
+        print_cache(meta_data_cache);
+
+	char out[2000];
+	int len;
+	printf("Result : %d\n",read_cache_block(buffer_cache,new_block->mdata,out,&len));
+
+	printf("Read content : %s\n",out);
+
+	if (find_meta_data_block(meta_data_cache,"file2.txt") == NULL ) {
+		printf("Find returned NULL\n");
+	} else { 
+		print_cache_block(find_meta_data_block(meta_data_cache,"file2.txt"));
+	}
+} 
 
 

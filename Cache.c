@@ -307,6 +307,33 @@ int main() {
 	} else { 
 		print_cache_block(find_meta_data_block(meta_data_cache,"file2.txt"));
 	}
+
+	char *buf = "FileName:file1\nNumPaths:2\nPaths:path1;path2;";
+	char fileName[100];
+	int num_path;
+	char paths[200*1000];
+	sscanf(buf,"FileName:%s\nNumPaths:%d\nPaths:%s\n",fileName,&num_path,paths);
+
+	printf("File name : %s num_path : %d paths: %s\n",fileName,num_path,paths);
+
+	char all_paths[1000][200];
+	int i=0;
+	int j=0;
+	int offset=0;
+	for(i=0;i<num_path;i++) {
+		offset=0;
+		while(paths[j]!= ';') {
+			all_paths[i][offset] = paths[j];
+			offset++;
+			j++;
+		}
+		j++;
+		all_paths[i][offset]='\0';
+	}	
+
+	for(i=0;i<num_path;i++) {
+		printf("Path %d : %s\n",i,all_paths[i]);
+	}
 } 
 
 

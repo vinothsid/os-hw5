@@ -3,6 +3,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+//#include <unistd.h>
+#include <fcntl.h>
+#include <string.h>
 
 CACHE  create_cache(int size,int block_size,char type) {
 	
@@ -228,7 +233,147 @@ void print_cache(CACHE c) {
 
 }
 
-/*
+int create_date_folder(char *time_stamp,char *folder_path,char *folder_name) {
+	char month[15];
+	char date[3];
+	char time[12];
+	char year[5];
+	sscanf(time_stamp,"%*[^ ] %[^ ] %[^ ] %[^ ] %*[^ ] %s",month,date,time,year);
+	printf("month : %s date : %s time: %s year: %s\n",month,date,time,year);
+
+	char tmp[50];
+	char path[MAX_PATH_NAME_SIZE];
+	sprintf(tmp,"%s-%s-%s",month,date,year);	
+
+	strcpy(folder_name,tmp);
+
+	strcpy(path,folder_path);
+	strcat(path,tmp);
+
+	struct stat statbuf;
+//	int isDir = 0;
+
+	printf("Folder path: %s\n",path);
+	
+	if (stat(path, &statbuf) == -1) {
+		mkdir(path,0777);
+		return 0;	
+	} else {
+		printf("Folder already present\n");
+		return 1;
+	}
+
+}
+
+int is_dates_equal(char *timestamp1,char *timestamp2) {
+	char month1[20];
+	int date1;
+	int year1;
+	char month2[20];
+	int date2;
+	int year2;
+
+	sscanf(timestamp1,"%*[^ ] %[^ ] %d %*[^ ] %*[^ ] %d",month1,&date1,&year1);
+	sscanf(timestamp2,"%*[^ ] %[^ ] %d %*[^ ] %*[^ ] %d",month2,&date2,&year2);
+
+//	printf("Month1: %s , date1: %d , year1: %d\n",month1,date1,year1);
+//	printf("Month1: %s , date1: %d , year1: %d\n",month2,date2,year2);
+
+	if( !strcmp(month1,month2) && date1 == date2 && year1 == year2)
+		return 1;
+	else
+		return 0;
+
+
+}
+
+int write_buffer_to_disk( CBLK wb_block ,char *chunk_path ) {
+
+	int fd = open("sample-log",O_RDONLY);
+	read(fd,wb_block->buf,4096);
+	
+	//printf("Buffer length : %d\n",strlen(wb_block->buf));
+	close(fd);
+
+	int startOffset = 0;
+	int offset=0;
+	char line[MAX_LINE_SIZE];
+	char timestamp[50];
+	char lastSeenDate[50]="";
+	char startTime[50];
+	char folderName[MAX_FILE_NAME_SIZE];
+//	printf("Result : %d\n",sscanf(wb_block->buf+offset,"%[^\n]\n",line));
+//	offset+=strlen(line)+1;
+//	printf("Result : %d\n",sscanf(wb_block->buf+offset,"%[^\n]\n",line));
+
+	if ( sscanf(wb_block->buf+offset,"%[^\n]\n",line) == 1 ) {
+		offset += strlen(line) + 1 ;
+//              printf("%s\n",line);
+                sscanf(line,"%*[^|]|%[^|]|%*s",timestamp);
+		sscanf(timestamp,"%*[^ ] %*[^ ] %*[^ ] %[^ ] %*[^ ] %*s",startTime);
+		strcpy(lastSeenDate,timestamp);
+		create_date_folder(lastSeenDate,chunk_path,folderName);
+	}
+
+
+	int id=0;
+	char chunk_file_name[MAX_FILE_NAME_SIZE];
+
+	while(sscanf(wb_block->buf+offset,"%[^\n]\n",line) == 1 ) {
+//		printf("%s\n",line);
+		sscanf(line,"%*[^|]|%[^|]|%*s",timestamp);
+		//printf("Time : %s\n",timestamp);
+		if(  is_dates_equal(timestamp,lastSeenDate) == 0 ) {
+			strcpy(chunk_file_name,chunk_path);
+			strcat(chunk_file_name,folderName);
+			strcat(chunk_file_name,"/");
+			strcat(chunk_file_name,wb_block->mdata->file_name);
+			strcat(chunk_file_name,"-");
+			strcat(chunk_file_name,startTime);
+
+			fd = open(chunk_file_name,O_CREAT|O_RDWR,0777);
+			printf("file : %s File descriptor:%d\n",chunk_file_name,fd);
+			write(fd,wb_block->buf+startOffset,offset-startOffset);		
+
+			printf("Current buf start : %d , buf end : %d\n",startOffset,offset);
+			write(1,wb_block->buf+startOffset,offset-startOffset);
+			printf("==============\n");
+			close(fd);
+
+			strcpy(wb_block->mdata->path[wb_block->mdata->num_paths++],chunk_file_name);
+
+			sscanf(timestamp,"%*[^ ] %*[^ ] %*[^ ] %[^ ] %*[^ ] %*s",startTime);
+			startOffset = offset; 
+			strcpy(lastSeenDate,timestamp);
+	//		memset(folderName,0,MAX_FILE_NAME_SIZE);
+			create_date_folder(lastSeenDate,chunk_path,folderName);
+
+		}
+
+		offset += strlen(line) + 1 ;
+		
+	}
+
+
+	strcpy(chunk_file_name,chunk_path);
+	strcat(chunk_file_name,folderName);
+	strcat(chunk_file_name,"/");
+	strcat(chunk_file_name,wb_block->mdata->file_name);
+	strcat(chunk_file_name,"-");
+	strcat(chunk_file_name,startTime);
+
+	fd = open(chunk_file_name,O_CREAT|O_RDWR,0777);
+	write(fd,wb_block->buf+startOffset,offset-startOffset);
+
+	printf("Current buf start : %d , buf end : %d\n",startOffset,offset);
+	write(1,wb_block->buf+startOffset,offset-startOffset);
+	printf("==============\n");
+	close(fd);
+
+	strcpy(wb_block->mdata->path[wb_block->mdata->num_paths++],chunk_file_name);
+	
+}
+
 int main() {
 
 	int result;
@@ -261,7 +406,7 @@ int main() {
 	CBLK new_wb_block = get_free_cache_block(buffer_cache,&result);
 	new_wb_block->mdata = new_block->mdata;
 
-	char string[20] = "Content 1";
+	char string[200] = "Content 1";
 	write_cache_block(buffer_cache,new_block->mdata,string,strlen(string));
 	//strcpy(new_wb_block->buf,"Content 1");
 	//new_wb_block->offset = 8;
@@ -272,7 +417,7 @@ int main() {
 //	print_cache_block(new_wb_block);
 	CBLK new_wb_block2 = get_free_cache_block(buffer_cache,&result);
 	new_wb_block2->mdata = new_block2->mdata;
-	strcpy(string,"Content 2");
+	strcpy(string,"ERROR|Sat Mar 17 20:33:43 EDT 2012|File Not Found\nERROR|Sat Mar 17 20:33:49 EDT 2012|Folder not found\n");
 	write_cache_block(buffer_cache,new_block2->mdata,string,strlen(string));
 	write_cache_block(buffer_cache,new_block2->mdata,string,strlen(string));
 	
@@ -293,8 +438,6 @@ int main() {
 	printf("----------------\n");
   //      update_lru(buffer_cache,new_wb_block);
         print_cache(buffer_cache);
-	printf("------Meta data cache--------\n");
-        print_cache(meta_data_cache);
 
 	char out[2000];
 	int len;
@@ -334,6 +477,14 @@ int main() {
 	for(i=0;i<num_path;i++) {
 		printf("Path %d : %s\n",i,all_paths[i]);
 	}
+
+	//create_date_folder("Sat Mar 17 20:33:43 EDT 2012","/home/vino/projects/ess/chunk_folder/");
+
+	write_buffer_to_disk(new_wb_block2,"/home/vino/projects/ess/chunk_folder/");
+
+	printf("------Meta data cache--------\n");
+        print_cache(meta_data_cache);
+//	printf("Retrun val : %d\n",is_dates_equal("Sat Mar 17 20:33:43 EDT 2012","Sat Mar 18 20:33:43 EDT 2012"));
 } 
 
-*/
+

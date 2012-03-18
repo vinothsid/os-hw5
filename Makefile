@@ -1,5 +1,6 @@
 all:
-	gcc -Wall `pkg-config fuse --cflags --libs` fusexmp.c -o fusexmp
+	gcc -c Cache.c -o Cache.o 
+	gcc -Wall `pkg-config fuse --cflags --libs` fusexmp.c Cache.o -o fusexmp
 clean:
-	rm fusexmp
+	rm fusexmp Cache.o
 

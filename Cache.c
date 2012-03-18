@@ -228,7 +228,7 @@ void print_cache(CACHE c) {
 
 }
 
-
+/*
 int main() {
 
 	int result;
@@ -336,4 +336,4 @@ int main() {
 	}
 } 
 
-
+*/

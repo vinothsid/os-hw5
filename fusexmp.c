@@ -1,13 +1,3 @@
-/*
-  FUSE: Filesystem in Userspace
-  Copyright (C) 2001-2007  Miklos Szeredi <miklos@szeredi.hu>
-
-  This program can be distributed under the terms of the GNU GPL.
-  See the file COPYING.
-
-  gcc -Wall `pkg-config fuse --cflags --libs` fusexmp.c -o fusexmp
-*/
-
 #define FUSE_USE_VERSION 26
 
 #ifdef HAVE_CONFIG_H
@@ -34,16 +24,95 @@
 #include "log_fs.h"
 #include "Cache.h"
 
+
+#define LOAD_PATH "/home/gokul/Desktop/serverfilesystem"
+#define MDATA_PATH "/home/gokul/Desktop/ESS/metadata/"
+#define CHUNK_PATH "/home/gokul/Desktop/ESS/Chunks/"
+
+static char load_path[500];
+CACHE meta_data_cache;
+CACHE buffer_cache;
+
+
+int write_metadata_to_disk(MDATA *mdata, char *mdata_path)
+{
+	char filepath[MAX_PATH_NAME_SIZE];
+	strcpy(filepath,mdata_path);
+	strcat(filepath,mdata->file_name);
+	
+	int fd,offset=0;
+	fd = open(filepath,O_CREAT|O_APPEND);
+	char buf[MAX_MDATA_FILE_SIZE];
+	strcpy(buf,"Filename:");
+	strcat(buf,mdata->file_name);
+	strcat(buf,"\n");
+	strcat(buf,"NumPaths:");
+        sprintf(buf+strlen(buf),"%d",mdata->num_paths);
+        strcat(buf,"\n");
+	strcat(buf,"Paths:");
+	int i;
+	for(i=0;i < mdata->num_paths;i++)
+	{
+		strcat(buf,mdata->path[i]);
+		strcat(buf,";");
+	}
+	strcat(buf,"\n");
+	int bytes_written;
+	bytes_written = write(fd,buf,strlen(buf));
+        if(bytes_written < 0)
+        	return -1;
+	else
+		return bytes_written;
+	close(fd);
+}
+
+CBLK mdata_from_disk_to_memory(char *filepath)
+{
+	int result;
+	char mdata_file_path[MAX_PATH_NAME_SIZE];
+	strcpy(mdata_file_path,MDATA_PATH);
+	strcat(mdata_file_path,filepath);		
+	CBLK new_mdata_block = get_free_cache_block(meta_data_cache,&result);
+	if(result == WRITE_BACK)
+	{
+		write_metadata_to_disk(new_mdata_block->mdata,MDATA_PATH);	
+	}
+	int fd;
+	fd = open(mdata_file_path,O_RDONLY);
+	char buf[MAX_MDATA_FILE_SIZE];
+	int bytes_read;
+	bytes_read = read(fd,buf,MAX_MDATA_FILE_SIZE);
+	if(bytes_read < 0)
+		return NULL;
+	else
+	{
+		char paths[MAX_MDATA_FILE_SIZE];
+		sscanf(buf,"FileName:%s\nNumPaths:%d\nPaths:%s\n",new_mdata_block->mdata->file_name,&(new_mdata_block->mdata->num_paths),paths);
+		
+		int i=0;
+		int j=0;
+		int offset=0;
+		for(i=0;i < new_mdata_block->mdata->num_paths;i++) {
+			offset=0;
+			while(paths[j]!= ';') {
+				new_mdata_block->mdata->path[i][offset] = paths[j];
+				offset++;
+				j++;
+			}
+			j++;
+			new_mdata_block->mdata->path[i][offset] = '\0';
+		}
+	}	
+}
+
+
 static int xmp_getattr(const char *path, struct stat *stbuf)
 {
 	int res;
-	char spath[500];
-        strcpy(spath,"/home/vino/Desktop/serverfilesystem");
-        strcat(spath,path);
-	res = lstat(spath, stbuf);
-
-        
-
+	strcpy(load_path,LOAD_PATH);
+	strcat(load_path,path);
+	res = lstat(load_path, stbuf);
+	
 	if (res == -1)
 		return -errno;
 
@@ -53,11 +122,9 @@ static int xmp_getattr(const char *path, struct stat *stbuf)
 static int xmp_access(const char *path, int mask)
 {
 	int res;
-	char spath[500];
-	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
-
-	strcat(spath,path);
-	res = access(spath, mask);
+	strcpy(load_path,LOAD_PATH);
+	strcat(load_path,path);
+	res = access(load_path, mask);
 	if (res == -1)
 		return -errno;
 
@@ -67,10 +134,9 @@ static int xmp_access(const char *path, int mask)
 static int xmp_readlink(const char *path, char *buf, size_t size)
 {
 	int res;
-	char spath[500];
-	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
-	strcat(spath,path);
-	res = readlink(spath, buf, size - 1);
+	strcpy(load_path,LOAD_PATH);
+	strcat(load_path,path);
+	res = readlink(load_path, buf, size - 1);
 	if (res == -1)
 		return -errno;
 
@@ -87,10 +153,9 @@ static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
 	(void) offset;
 	(void) fi;
-	char spath[500];
-	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
-	strcat(spath,path);
-	dp = opendir(spath);
+	strcpy(load_path,LOAD_PATH);
+	strcat(load_path,path);
+	dp = opendir(load_path);
 	if (dp == NULL)
 		return -errno;
 
@@ -111,13 +176,24 @@ static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 static int xmp_mknod(const char *path, mode_t mode, dev_t rdev)
 {
 	int res;
-	char spath[500];
-	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
-	strcat(spath,path);
-	/* On Linux this could just be 'mknod(path, mode, rdev)' but this
-	   is more portable */
+	int mdata_file_res;
+	char file_mdata_path[500];
+
+	strcpy(load_path,LOAD_PATH);
+	strcat(load_path,path);
+
 	if (S_ISREG(mode)) {
-		res = open(spath, O_CREAT | O_EXCL | O_WRONLY, mode);
+		res = open(load_path, O_CREAT | O_EXCL | O_WRONLY, mode);
+		strcpy(file_mdata_path,MDATA_PATH);
+		strcat(file_mdata_path,path);
+		mdata_file_res=open(file_mdata_path,O_CREAT|O_APPEND);
+	        int result;
+                CBLK new_block = get_free_cache_block(meta_data_cache,&result);
+		strcpy(new_block->mdata->file_name,path+1);
+		new_block->mdata->num_paths = 0;
+	
+		if(mdata_file_res < 0)
+			perror("file_metadata_open_error");			
 		if (res >= 0)
 			res = close(res);
 	} else if (S_ISFIFO(mode))
@@ -133,10 +209,9 @@ static int xmp_mknod(const char *path, mode_t mode, dev_t rdev)
 static int xmp_mkdir(const char *path, mode_t mode)
 {
 	int res;
-	char spath[500];
-	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
-	strcat(spath,path);
-	res = mkdir(spath, mode);
+	strcpy(load_path,LOAD_PATH);
+	strcat(load_path,path);
+	res = mkdir(load_path, mode);
 	if (res == -1)
 		return -errno;
 
@@ -146,10 +221,9 @@ static int xmp_mkdir(const char *path, mode_t mode)
 static int xmp_unlink(const char *path)
 {
 	int res;
-	char spath[500];
-	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
-	strcat(spath,path);
-	res = unlink(spath);
+	strcpy(load_path,LOAD_PATH);
+	strcat(load_path,path);
+	res = unlink(load_path);
 	if (res == -1)
 		return -errno;
 
@@ -159,10 +233,9 @@ static int xmp_unlink(const char *path)
 static int xmp_rmdir(const char *path)
 {
 	int res;
-	char spath[500];
-	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
-	strcat(spath,path);
-	res = rmdir(spath);
+	strcpy(load_path,LOAD_PATH);
+	strcat(load_path,path);
+	res = rmdir(load_path);
 	if (res == -1)
 		return -errno;
 
@@ -205,10 +278,9 @@ static int xmp_link(const char *from, const char *to)
 static int xmp_chmod(const char *path, mode_t mode)
 {
 	int res;
-	char spath[500];
-	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
-	strcat(spath,path);
-	res = chmod(spath, mode);
+	strcpy(load_path,LOAD_PATH);
+	strcat(load_path,path);
+	res = chmod(load_path, mode);
 	if (res == -1)
 		return -errno;
 
@@ -218,10 +290,9 @@ static int xmp_chmod(const char *path, mode_t mode)
 static int xmp_chown(const char *path, uid_t uid, gid_t gid)
 {
 	int res;
-	char spath[500];
-	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
-	strcat(spath,path);
-	res = lchown(spath, uid, gid);
+	strcpy(load_path,LOAD_PATH);
+	strcat(load_path,path);
+	res = lchown(load_path, uid, gid);
 	if (res == -1)
 		return -errno;
 
@@ -231,10 +302,9 @@ static int xmp_chown(const char *path, uid_t uid, gid_t gid)
 static int xmp_truncate(const char *path, off_t size)
 {
 	int res;
-	char spath[500];
-	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
-	strcat(spath,path);
-	res = truncate(spath, size);
+	strcpy(load_path,LOAD_PATH);
+	strcat(load_path,path);
+	res = truncate(load_path, size);
 	if (res == -1)
 		return -errno;
 
@@ -250,10 +320,9 @@ static int xmp_utimens(const char *path, const struct timespec ts[2])
 	tv[0].tv_usec = ts[0].tv_nsec / 1000;
 	tv[1].tv_sec = ts[1].tv_sec;
 	tv[1].tv_usec = ts[1].tv_nsec / 1000;
-	char spath[500];
-	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
-	strcat(spath,path);
-	res = utimes(spath, tv);
+	strcpy(load_path,LOAD_PATH);
+	strcat(load_path,path);
+	res = utimes(load_path, tv);
 	if (res == -1)
 		return -errno;
 
@@ -263,10 +332,9 @@ static int xmp_utimens(const char *path, const struct timespec ts[2])
 static int xmp_open(const char *path, struct fuse_file_info *fi)
 {
 	int res;
-	char spath[500];
-	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
-	strcat(spath,path);
-	res = open(spath, fi->flags);
+	strcpy(load_path,LOAD_PATH);
+	strcat(load_path,path);
+	res = open(load_path, fi->flags);
 	if (res == -1)
 		return -errno;
 
@@ -281,61 +349,63 @@ static int xmp_read(const char *path, char *buf, size_t size, off_t offset,
 	int res;
 	char temp1[1000];
        
-	
-
 	(void) fi;
-	char spath[500];
-	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
+/*	char spath[500];
+	strcpy(spath,"/home/gokul/Desktop/serverfilesystem");
 	strcat(spath,path);
-	fd = open(spath, O_RDONLY);
-	if (fd == -1)
-		return -errno;
+//	fd = open(spath, O_RDONLY);
+//	if (fd == -1)
+//		return -errno;
 	//strcpy(temp1,"gokulprasanna");
-
-	res = pread(fd, buf, size, offset);
-	//char temp2[size];
-        //strcpy(temp2,buf);
-
-        //printf("\nsize of temp2: %d\n",sizeof(temp2));
-
-	//size=size+4096;
-	//strcat(temp1,temp2);
-	//printf("\n\n %s %d\n\n",temp1,strlen(temp1));
-
-	//int i;
- 	//for(i=0;i<strlen(temp1);i++)
-        //{
-	 //buf[i]=temp1[i];
-        //}
-	//buf[i]='\0';
-	//printf("\n\n %s \n\n",buf);
-	//strcpy(buf,temp1);
-	//size=strlen(buf);
-        
+	
+//	res = pread(fd, buf, size, offset);
+//	printf("\nres is %d\n",res);
+	printf("\n\n%s\n\n",buf);
+	printf("offset is %d\n",offset);
+	printf("size is %d\n",size);
+	printf("\nstrlen(buf) is %d\n",strlen(buf));
+	char temp2[4096];
+	strcpy(temp1,"_padding_");
+	strcpy(temp2,buf);
+	//buf=(char*)malloc(1000);
+	strcat(temp1,temp2);
+	printf("now temp1 is %s and has len: %d\n",temp1,strlen(temp1));
+	        
+	memcpy(buf,temp1,strlen(temp1));
+	printf("now content in buf is %s and has len: %d ",buf,strlen(buf));
+	printf("size is %d",size);
 	if (res == -1)
 		res = -errno;
+*/
+	memset(buf,0,40);
+	strcpy(buf,"helllllllllllllllllllllllllllllllllo");
 
-	close(fd);
-	return res;
+	//close(fd);
+	return strlen(buf);
 }
 
 static int xmp_write(const char *path, const char *buf, size_t size,
 		     off_t offset, struct fuse_file_info *fi)
 {
 	int fd;
-	int res;
-	char spath[500];
+	int res,result;
+	strcat(load_path,path);
 	
-	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
-	strcat(spath,path);
+	CBLK meta_data_block = find_meta_data_block(meta_data_cache,path+1);
+	if(meta_data_block == NULL)
+        {
+		meta_data_block = mdata_from_disk_to_memory(path);
+	}
+
+	CBLK wbuf_data_block = find_meta_data_block(buffer_cache,path+1);
+	
+	
+
 	(void) fi;
-	fd = open(spath, O_WRONLY);
+	fd = open(path, O_WRONLY);
 	if (fd == -1)
 		return -errno;
 
-        char tmp[1000];
-	strcpy(tmp,"vino");
-	strcpy(buf,tmp);
 	res = pwrite(fd, buf, size, offset);
         
 	if (res == -1)
@@ -348,10 +418,9 @@ static int xmp_write(const char *path, const char *buf, size_t size,
 static int xmp_statfs(const char *path, struct statvfs *stbuf)
 {
 	int res;
-	char spath[500];
-	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
-	strcat(spath,path);
-	res = statvfs(spath, stbuf);
+	strcpy(load_path,LOAD_PATH);
+	strcat(load_path,path);
+	res = statvfs(load_path, stbuf);
 	if (res == -1)
 		return -errno;
 
@@ -450,5 +519,10 @@ static struct fuse_operations xmp_oper = {
 int main(int argc, char *argv[])
 {
 	umask(0);
+
+        CACHE buffer_cache = create_cache(4096*10,4096,WRITE_BUFFER);
+        
+        CACHE meta_data_cache = create_cache(100,1,METADATA_CACHE);
+
 	return fuse_main(argc, argv, &xmp_oper, NULL);
 }

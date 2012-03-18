@@ -142,7 +142,7 @@ int read_cache_block(CACHE c,MDATA *meta_data,char *out_buf,int *buf_len ) {
 }
 
 CBLK find_meta_data_block(CACHE c,char *file_name) {
-	if(c->type == METADATA_CACHE) {
+//	if(c->type == METADATA_CACHE) {
 		int i=0;
 		for(i=0;i<c->num_blocks;i++) {
 			if(c->cblocks[i].free_flag == false && strcmp(c->cblocks[i].mdata->file_name,file_name) ==0 ) {
@@ -150,11 +150,11 @@ CBLK find_meta_data_block(CACHE c,char *file_name) {
 			}
 		}
 
-	} else {
+/*	} else {
 		fprintf(stderr,"ERROR:Wrong type of cache\n");
 		return NULL;
 	}
-
+*/
 	return NULL; // if NULL allocate new block
 
 }

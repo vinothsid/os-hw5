@@ -41,7 +41,7 @@ int write_metadata_to_disk(MDATA *mdata, char *mdata_path)
 	strcat(filepath,mdata->file_name);
 	
 	int fd,offset=0;
-	fd = open(filepath,O_CREAT|O_APPEND);
+	fd = open(filepath,O_CREAT|O_RDWR,0777);
 	char buf[MAX_MDATA_FILE_SIZE];
 	strcpy(buf,"Filename:");
 	strcat(buf,mdata->file_name);
@@ -190,14 +190,18 @@ static int xmp_mknod(const char *path, mode_t mode, dev_t rdev)
 		res = open(load_path, O_CREAT | O_EXCL | O_WRONLY, mode);
 		strcpy(file_mdata_path,MDATA_PATH);
 		strcat(file_mdata_path,path);
-		mdata_file_res=open(file_mdata_path,O_CREAT|O_APPEND);
+	//	mdata_file_res=open(file_mdata_path,O_CREAT|O_RDWR,0777);
 	        int result;
                 CBLK new_block = get_free_cache_block(meta_data_cache,&result);
 		strcpy(new_block->mdata->file_name,path+1);
 		new_block->mdata->num_paths = 0;
-	
-		if(mdata_file_res < 0)
-			perror("file_metadata_open_error");			
+
+		write_metadata_to_disk(new_block->mdata,MDATA_PATH);	
+	//	if(mdata_file_res < 0)
+	//		perror("file_metadata_open_error");			
+	//	else
+	//		close(mdata_file_res);
+
 		if (res >= 0)
 			res = close(res);
 	} else if (S_ISFIFO(mode))
@@ -399,27 +403,49 @@ static int xmp_write(const char *path, const char *buf, size_t size,
 	if(meta_data_block == NULL)
         {
 		meta_data_block = mdata_from_disk_to_memory(path);
+		printf("meta_data_block is not found in cache , hence allocating new\n");
+	} else {
+		printf("meta_data_block already found in cache\n");
 	}
 
 	CBLK wbuf_data_block = find_meta_data_block(buffer_cache,path+1);
 	if(wbuf_data_block == NULL)
 	{
 		wbuf_data_block = get_free_cache_block(buffer_cache,&result);
+		if(result == WRITE_BACK)
+		{
+			write_buffer_to_disk(wbuf_data_block,CHUNK_PATH,buffer_cache);
+			printf("Evicting old cache block\n");
+		}
+		wbuf_data_block->mdata = meta_data_block->mdata;
+		printf("wbuf is not found in cache and hence allocating new\n");
+	} else {
+		printf("wbuf already found in cache\n");
 	}
 	
+	if(wbuf_data_block->offset + strlen(buf) > buffer_cache->cache_block_size)
+	{
+		write_buffer_to_disk(wbuf_data_block,CHUNK_PATH,buffer_cache);
+		printf("cache_block buffer full and is written to disk\n");
+	} else {
+		printf("appending to cache block buffer\n");
+	}
+	
+	strcat(wbuf_data_block->buf,buf);
+	wbuf_data_block->offset += strlen(buf);
 
 	(void) fi;
-	fd = open(path, O_WRONLY);
-	if (fd == -1)
-		return -errno;
+	//fd = open(path, O_WRONLY);
+	//if (fd == -1)
+	//	return -errno;
 
-	res = pwrite(fd, buf, size, offset);
+	//res = pwrite(fd, buf, size, offset);
         
-	if (res == -1)
-		res = -errno;
+	//if (res == -1)
+	//	res = -errno;
 
-	close(fd);
-	return res;
+	//close(fd);
+	return strlen(buf);
 }
 
 static int xmp_statfs(const char *path, struct statvfs *stbuf)
@@ -527,9 +553,10 @@ int main(int argc, char *argv[])
 {
 	umask(0);
 
-        CACHE buffer_cache = create_cache(4096*10,4096,WRITE_BUFFER);
+        buffer_cache = create_cache(4096*10,4096,WRITE_BUFFER);
         
-        CACHE meta_data_cache = create_cache(100,1,METADATA_CACHE);
+        meta_data_cache = create_cache(100,1,METADATA_CACHE);
+	printf("meta_data_cache : %p\n",meta_data_cache);
 
 	return fuse_main(argc, argv, &xmp_oper, NULL);
 }

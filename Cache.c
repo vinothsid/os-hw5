@@ -150,7 +150,7 @@ CBLK find_meta_data_block(CACHE c,char *file_name) {
 //	if(c->type == METADATA_CACHE) {
 		int i=0;
 		for(i=0;i<c->num_blocks;i++) {
-			if(c->cblocks[i].free_flag == false && strcmp(c->cblocks[i].mdata->file_name,file_name) ==0 ) {
+			if(c->cblocks[i].free_flag == false && c->cblocks[i].mdata!= NULL && strcmp(c->cblocks[i].mdata->file_name,file_name) ==0 ) {
 				return c->cblocks+i;
 			}
 		}
@@ -287,13 +287,13 @@ int is_dates_equal(char *timestamp1,char *timestamp2) {
 
 }
 
-int write_buffer_to_disk( CBLK wb_block ,char *chunk_path ) {
+int write_buffer_to_disk( CBLK wb_block ,char *chunk_path,CACHE buffer_cache) {
 
-	int fd = open("sample-log",O_RDONLY);
-	read(fd,wb_block->buf,4096);
+	int fd; // = open("sample-log",O_RDONLY);
+	//read(fd,wb_block->buf,4096);
 	
 	//printf("Buffer length : %d\n",strlen(wb_block->buf));
-	close(fd);
+	//close(fd);
 
 	int startOffset = 0;
 	int offset=0;
@@ -371,9 +371,12 @@ int write_buffer_to_disk( CBLK wb_block ,char *chunk_path ) {
 	close(fd);
 
 	strcpy(wb_block->mdata->path[wb_block->mdata->num_paths++],chunk_file_name);
+
+	memset(wb_block->buf,0,buffer_cache->cache_block_size);
+        wb_block->offset = 0;
 	
 }
-
+/*
 int main() {
 
 	int result;
@@ -486,5 +489,5 @@ int main() {
         print_cache(meta_data_cache);
 //	printf("Retrun val : %d\n",is_dates_equal("Sat Mar 17 20:33:43 EDT 2012","Sat Mar 18 20:33:43 EDT 2012"));
 } 
-
+*/
 

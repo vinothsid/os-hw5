@@ -106,6 +106,10 @@ CBLK mdata_from_disk_to_memory(char *filepath)
 }
 
 
+
+
+
+
 static int xmp_getattr(const char *path, struct stat *stbuf)
 {
 	int res;
@@ -398,7 +402,10 @@ static int xmp_write(const char *path, const char *buf, size_t size,
 	}
 
 	CBLK wbuf_data_block = find_meta_data_block(buffer_cache,path+1);
-	
+	if(wbuf_data_block == NULL)
+	{
+		wbuf_data_block = get_free_cache_block(buffer_cache,&result);
+	}
 	
 
 	(void) fi;

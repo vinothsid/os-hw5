@@ -11,9 +11,12 @@
 
 #define TIMEOUT 10
 struct sockDes {
+	int id;
         int sockfd;
         struct sockaddr_in server_addr;
 };
+
+keyval_t* keyVals_c;
 
 /*
 *Thread function which calls connect system call
@@ -28,4 +31,9 @@ void* connectTo(void* sockfd);
 *internally levarages the connectTo function
 */
 int connectThread();
+
+int responseClient(int sock, char* msg,); 
+
+keyval_t* selectServer();/*works on keyVals_c*/
+
 

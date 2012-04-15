@@ -19,9 +19,12 @@
 #define MAX_PARALLEL_CONNECTIONS 100
 #define MAX_MSG_SIZE 100
 #define TIMEOUT 10
+#define MAXKEYS 1000
+
+keyval_t keyVals[MAXKEYS];
 
 void *serverThread (void *a);
 
-
 int tcpServer( int port );
 
+int responseServer(int sock,char*  msg);

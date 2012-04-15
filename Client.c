@@ -2,6 +2,11 @@
 #include "Util.h"
 #define LENGTH 1024
 
+char msg[LENGTH];
+int Nr;
+int Nw;
+int N;
+
 void* connectTo(void* sockfd) {
 	char str[INET_ADDRSTRLEN];
 	struct sockDes sock=*(struct sockDes *)sockfd;
@@ -31,12 +36,14 @@ int connectThread() {
 	struct sockaddr_in server_addr;
 	char addrArray[2][64]={"192.168.1.105", "192.168.1.106"};
 	int port[2]={5000,5010};
+	keyVals_c=(keyval_t*)malloc((sizeof keyval_t)*N);
 	//printf("%s\n",addrArray[0]);
 	int i;
 	pthread_t t[2];
 	for(i=0;i<2;i++) {
 		printf("%d connect attempt\n",i);
 		struct sockDes* sockfd=(struct sockDes *)malloc(sizeof(struct sockDes));
+		sockfd->id=i;
 		if ((sockfd->sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
 			perror("Socket");
 			exit(1);
@@ -55,5 +62,6 @@ int connectThread() {
 }
 
 void main() {
+	
 	connectThread();
 }

@@ -1,25 +1,6 @@
-#include <Client.h>
-#include <util.h>
+#include "Client.h"
+#include "Util.h"
 #define LENGTH 1024
-
-int recvTimeout(int sock,char* data,int timeout,int length) {
-	fd_set readfds;
-	struct timeval tv;
-	FD_ZERO(&readfds);
-	FD_SET(sock,&readfds);
-	int n=sock+1;
-	tv.tv_sec=timeout;
-	tv.tv_usec=0;
-	int rv=select(n,&readfds,NULL,NULL,&tv);
-	//printf("return value from select is %d\n",rv);
-	if(rv == -1) {
-		perror("select");
-	} else if(rv == 0) {
-		printf("Timeout occured!\n");
-	} else {
-		recv(sock,data,length, 0);/*data must be available*/
-	}
-}
 
 void* connectTo(void* sockfd) {
 	char str[INET_ADDRSTRLEN];

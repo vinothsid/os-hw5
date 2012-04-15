@@ -9,7 +9,7 @@ void *serverThread (void *a){
 	int result ;
 
 	while(1) {	
-	result = recvtimeout(sockDesc,msg,MAX_MSG_SIZE,TIMEOUT); 
+	result = recvTimeout(sockDesc,msg,TIMEOUT,MAX_MSG_SIZE); 
 
 
 	if( result == -2 ) {

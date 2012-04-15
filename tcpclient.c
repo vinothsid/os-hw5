@@ -39,7 +39,7 @@ int main(int argc,char *argv[])
             exit(1);
         }
 
-        while(1)
+//        while(1)
         {
 
            printf("\nSEND (q or Q to quit) : ");
@@ -52,8 +52,8 @@ int main(int argc,char *argv[])
           {
            send(sock,send_data,strlen(send_data), 0);   
            close(sock);
-           break;
           }
+
 
           bytes_recieved=recv(sock,recv_data,1024,0);
           recv_data[bytes_recieved] = '\0';
@@ -61,7 +61,6 @@ int main(int argc,char *argv[])
           if (strcmp(recv_data , "q") == 0 || strcmp(recv_data , "Q") == 0)
           {
            close(sock);
-           break;
           }
           else
            printf("\nRecieved data = %s " , recv_data);

@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <pthread.h>
 
+#define TIMEOUT 10
 struct sockDes {
         int sockfd;
         struct sockaddr_in server_addr;

@@ -2,6 +2,11 @@
 #include "Util.h"
 #define LENGTH 1024
 
+char msg[LENGTH];
+int Nr;
+int Nw;
+int N;
+
 void* connectTo(void* sockfd) {
 	char str[INET_ADDRSTRLEN];
 	struct sockDes sock=*(struct sockDes *)sockfd;
@@ -21,7 +26,7 @@ void* connectTo(void* sockfd) {
 	printf("sending data %s to %s at %d\n",send_data,str,ntohs(sock.server_addr.sin_port));
 	send(sock.sockfd,send_data,strlen(send_data),0);
 	recvTimeout(sock.sockfd,recv_data,TIMEOUT,LENGTH);
-	printf("received data %s to %s at %d\n",recv_data,str,ntohs(sock.server_addr.sin_port));
+	printf("received data %s from %s at %d\n",recv_data,str,ntohs(sock.server_addr.sin_port));
 		
 }
 
@@ -29,19 +34,20 @@ int connectThread() {
 	int sock;
 	struct hostent* host;
 	struct sockaddr_in server_addr;
-	char addrArray[2][64]={"192.168.1.106", "192.168.1.106"};
+	char addrArray[2][64]={"192.168.1.105", "192.168.1.106"};
 	int port[2]={5000,5010};
+	keyVals_c=(keyval_t*)malloc((sizeof keyval_t)*N);
 	//printf("%s\n",addrArray[0]);
 	int i;
 	pthread_t t[2];
-	if ((sock = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-		perror("Socket");
-		exit(1);
-	}
 	for(i=0;i<2;i++) {
 		printf("%d connect attempt\n",i);
 		struct sockDes* sockfd=(struct sockDes *)malloc(sizeof(struct sockDes));
-		sockfd->sockfd=sock;
+		sockfd->id=i;
+		if ((sockfd->sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+			perror("Socket");
+			exit(1);
+		}
 		sockfd->server_addr.sin_family=AF_INET;
 		sockfd->server_addr.sin_port=htons(port[i]);
 		host = gethostbyname(addrArray[i]);
@@ -56,5 +62,6 @@ int connectThread() {
 }
 
 void main() {
+	
 	connectThread();
 }

@@ -22,7 +22,7 @@ int recvTimeout(int sock,char* data,int timeout,int length) {
         } else if(rv == 0) {
                 printf("Timeout occured!\n");
         } else {
-                recv(sock,data,length, 0);/*data must be available*/
+                recv(sock,data,length,-1);/*data must be available*/
         }
 }
 

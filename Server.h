@@ -15,6 +15,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include "Util.h"
+#include "Vote.h"
 #define LISTENQUEUE 10
 #define MAX_PARALLEL_CONNECTIONS 100
 #define MAX_MSG_SIZE 100

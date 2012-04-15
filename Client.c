@@ -1,26 +1,14 @@
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <netdb.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <errno.h>
-#include <pthread.h>
+#include <Client.h>
+#include <util.h>
+#define LENGTH 1024
 
-struct sockDes {
-	int sockfd;
-	struct sockaddr_in server_addr;
-};
-
-int recvTimeout(int sock,char* data) {
+int recvTimeout(int sock,char* data,int timeout,int length) {
 	fd_set readfds;
 	struct timeval tv;
 	FD_ZERO(&readfds);
 	FD_SET(sock,&readfds);
 	int n=sock+1;
-	tv.tv_sec=10;
+	tv.tv_sec=timeout;
 	tv.tv_usec=0;
 	int rv=select(n,&readfds,NULL,NULL,&tv);
 	//printf("return value from select is %d\n",rv);
@@ -29,7 +17,7 @@ int recvTimeout(int sock,char* data) {
 	} else if(rv == 0) {
 		printf("Timeout occured!\n");
 	} else {
-		recv(sock,data,1024, 0);/*data must be available*/
+		recv(sock,data,length, 0);/*data must be available*/
 	}
 }
 
@@ -37,7 +25,7 @@ void* connectTo(void* sockfd) {
 	char str[INET_ADDRSTRLEN];
 	struct sockDes sock=*(struct sockDes *)sockfd;
 	int bytes_received;
-	char send_data[1024],recv_data[1024];
+	char send_data[LENGTH],recv_data[LENGTH];
 	inet_ntop(AF_INET,&(sock.server_addr.sin_addr),str,INET_ADDRSTRLEN);
 	printf("ip addr is:%s\n",str);
 	if (connect(sock.sockfd,(struct sockaddr *)&(sock.server_addr),
@@ -46,12 +34,13 @@ void* connectTo(void* sockfd) {
 		perror("Connect");
 		pthread_exit(NULL);
 	}
-	memset(send_data,0,1024);
+	memset(send_data,0,LENGTH);
+	memset(recv_data,0,LENGTH);
 	strcpy(send_data,"test data");
 	printf("sending data %s to %s at %d\n",send_data,str,ntohs(sock.server_addr.sin_port));
-	send(sock.sockfd,send_data,strlen(send_data)+1,0);
-	recvTimeout(sock.sockfd,recv_data);
-//	printf("received data %s to %s at %d\n",recv_data,str,ntohs(sock.server_addr.sin_port));
+	send(sock.sockfd,send_data,strlen(send_data),0);
+	recvTimeout(sock.sockfd,recv_data,timeout,LENGTH);
+	printf("received data %s to %s at %d\n",recv_data,str,ntohs(sock.server_addr.sin_port));
 		
 }
 
@@ -85,6 +74,3 @@ int connectThread() {
 	
 }
 
-void main() {
-	connectThread();
-}

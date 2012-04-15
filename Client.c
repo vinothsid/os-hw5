@@ -20,7 +20,7 @@ void* connectTo(void* sockfd) {
 	strcpy(send_data,"test data");
 	printf("sending data %s to %s at %d\n",send_data,str,ntohs(sock.server_addr.sin_port));
 	send(sock.sockfd,send_data,strlen(send_data),0);
-	recvTimeout(sock.sockfd,recv_data,timeout,LENGTH);
+	recvTimeout(sock.sockfd,recv_data,TIMEOUT,LENGTH);
 	printf("received data %s to %s at %d\n",recv_data,str,ntohs(sock.server_addr.sin_port));
 		
 }
@@ -55,3 +55,6 @@ int connectThread() {
 	
 }
 
+void main() {
+	connectThread();
+}

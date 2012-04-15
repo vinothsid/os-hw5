@@ -61,6 +61,7 @@ void *serverThread (void *a){
 		printf("Timedout for socket %d\n",sockDesc);
 	} else if (result>0) {
 		printf("Received msg : %s\n",msg);
+		memset(msg,0,MAX_MSG_SIZE);
 		send(sockDesc,msg,result,0);
 	} else {
 		printf("Recv failed\n");

@@ -6,6 +6,7 @@ void *serverThread (void *a){
 
 	printf("Starting new thread\n");
 	char msg[MAX_MSG_SIZE];
+	memset(msg,0,MAX_MSG_SIZE);
 	int result ;
 
 	while(1) {	

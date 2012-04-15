@@ -63,7 +63,6 @@ int main(int argc,char *argv[])
            close(sock);
            break;
           }
-
           else
            printf("\nRecieved data = %s " , recv_data);
  

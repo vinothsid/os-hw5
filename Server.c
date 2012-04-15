@@ -1,49 +1,4 @@
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <string.h>
-#include <sys/wait.h>
-#include <signal.h>
-#include <netinet/in.h>
-#include <string.h>
-#include <errno.h>
-#include <unistd.h>
-#include <pthread.h>
-#include <time.h>
-#include <sys/time.h>
-
-#define LISTENQUEUE 10
-#define MAX_PARALLEL_CONNECTIONS 100
-#define MAX_MSG_SIZE 100
-#define TIMEOUT 10
-
-/* The following function is referred from Beej website: http://beej.us/guide/bgnet/output/html/singlepage/bgnet.html */
-int recvtimeout(int s, char *buf, int len, int timeout)
-{
-    fd_set fds;
-    int n;
-    struct timeval tv;
-
-    // set up the file descriptor set
-    FD_ZERO(&fds);
-    FD_SET(s, &fds);
-
-    // set up the struct timeval for the timeout
-    tv.tv_sec = timeout;
-    tv.tv_usec = 0;
-
-    // wait until timeout or data received
-    n = select(s+1, &fds, NULL, NULL, &tv);
-    if (n == 0) return -2; // timeout!
-    if (n == -1) return -1; // error
-
-    // data must be here, so do a normal recv()
-    return recv(s, buf, len, 0);
-}
+#include "Server.h"
 
 void *serverThread (void *a){
         int *temp = (int *)a;
@@ -59,12 +14,14 @@ void *serverThread (void *a){
 
 	if( result == -2 ) {
 		printf("Timedout for socket %d\n",sockDesc);
+		break;
 	} else if (result>0) {
 		printf("Received msg : %s\n",msg);
-		memset(msg,0,MAX_MSG_SIZE);
 		send(sockDesc,msg,result,0);
+		memset(msg,0,MAX_MSG_SIZE);
 	} else {
 		printf("Recv failed\n");
+		break;
 	}
 	}
         close(sockDesc);
@@ -73,12 +30,7 @@ void *serverThread (void *a){
 
 }
 
-char *itoa(int num) {
-        char *str;
-        str = (char *)malloc(5);
-        sprintf(str,"%d",num);
-        return str;
-}
+
 
 int tcpServer( int port )
 {       pthread_t threadID[MAX_PARALLEL_CONNECTIONS];

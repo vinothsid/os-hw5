@@ -1,7 +1,7 @@
 #include "Client.h"
 #include "Util.h"
 #define LENGTH 1024
-#define client
+//#define client
 
 char msgG[LENGTH];
 char msgType[100];
@@ -10,6 +10,7 @@ char valG[LENGTH];
 int Nr;
 int Nw;
 int N;
+int responsesG=0;
 /*
 int responseClient(int sock, char* msg) {
 	char send_data[LENGTH],recv_data[LENGTH];
@@ -41,7 +42,9 @@ void* connectTo(void* sockfd) {
 	int bytes_received;
 	char send_data[LENGTH],recv_data[LENGTH];
 	inet_ntop(AF_INET,&(sock.server_addr.sin_addr),str,INET_ADDRSTRLEN);
+#ifdef client
 	printf("ip addr is:%s\n",str);
+#endif
 	if (connect(sock.sockfd,(struct sockaddr *)&(sock.server_addr),
                     sizeof(struct sockaddr)) == -1)
 	{
@@ -57,13 +60,23 @@ void* connectTo(void* sockfd) {
 	printf("rv is %d:data received from client is %s\n",rv, recv_data);
 #endif
 	if(rv==0 || rv==-1) {
+		/*receive timed out*/
 		perror("No Data From Server");
 		keyVals_c[myid].sock=-1;
 		pthread_exit(NULL);
 	}
+	/*atomically increment number of responses*/
+	int resO=responsesG;
+	int resN=resO+1;
+	while(compare_and_swap(&responsesG,resN,resO)!=resO) {
+		resO=responsesG;
+		resN=resO+1;
+	}
+	
 	sscanf(recv_data,"%d %s %s",&(keyVals_c[myid].vno),keyVals_c[myid].key,keyVals_c[myid].value);
 	/*set sock to indicate server responded*/
 	keyVals_c[myid].sock=sock.sockfd;
+		
 	if(strcmp(msgType,"PUT")==0) {
 		char retMsg[25];
 		sscanf(recv_data,"%s %*s",retMsg);
@@ -95,7 +108,9 @@ int connectThread() {
 	struct sockDes* sockfd=(struct sockDes *)malloc(sizeof(struct sockDes)*N);
 	pthread_t* t=(pthread_t*)malloc(sizeof(pthread_t)*N);
 	for(i=0;i<N;i++) {
+#ifdef client
 		printf("%d connect attempt\n",i);
+#endif
 		(sockfd+i)->id=i;
 		if (((sockfd+i)->sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
 			perror("Socket");
@@ -121,6 +136,10 @@ int connectThread() {
 #endif 
 	if(strcmp(msgType,"GET")==0) {	
 	/*if get was sent*/
+		if(responsesG<Nr) {
+		/*not enough votes for get*/
+			exit(1);
+		}
 		int HVNO=selectServer();
 		inet_ntop(AF_INET,&(sockfd[HVNO].server_addr.sin_addr),str,INET_ADDRSTRLEN);
 		int port_final=ntohs(sockfd[HVNO].server_addr.sin_port);
@@ -131,13 +150,21 @@ int connectThread() {
 	}
 	else if(strcmp(msgType,"PUT")==0) {
 	/*if UPDATE was sent*/
+		if(responsesG<Nw) {
+		/*not enough votes for put*/
+			exit(1);
+		}
 		int HVNO=selectServer();
 		int new_vno=(keyVals_c[HVNO].vno)+1;
-		/*update all sockets which responded with vote*/
+		/*
+		 * update all sockets which responded with vote
+		 * i.e. sock in keyVals_c is not -1
+		 */
 		int i;
 		/*create update msg*/
 		memset(msgG,0,LENGTH);
 		sprintf(msgG,"update %s %s %d",keyG,valG,new_vno);
+		
 		for(i=0;i<N;i++) {
 			if(keyVals_c[i].sock!=-1) {
 				pthread_create(&t[i],NULL,connectTo,(void*)(&sockfd[i]));
@@ -150,6 +177,7 @@ int connectThread() {
 }
 
 void main(int argc, char* argv[]) {
+	
 	strcpy(msgType,argv[4]);
 	strcpy(msgG,argv[4]);
 	strcat(msgG," ");
@@ -159,6 +187,5 @@ void main(int argc, char* argv[]) {
 		strcpy(valG,argv[7]);
 	}
 	N=1;
-	//printf("msg is %s\n",msgG);
 	connectThread();
 }

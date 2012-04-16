@@ -10,6 +10,7 @@ char valG[LENGTH];
 int Nr;
 int Nw;
 int N;
+int responsesG;
 /*
 int responseClient(int sock, char* msg) {
 	char send_data[LENGTH],recv_data[LENGTH];
@@ -60,6 +61,12 @@ void* connectTo(void* sockfd) {
 		perror("No Data From Server");
 		keyVals_c[myid].sock=-1;
 		pthread_exit(NULL);
+	}
+	int resO=responsesG;
+	int resN=resO+1;
+	while(compare_and_swap(&responsesG,resN,resO)!=resO) {
+		resO=responsesG;
+		resN=resO+1;
 	}
 	sscanf(recv_data,"%d %s %s",&(keyVals_c[myid].vno),keyVals_c[myid].key,keyVals_c[myid].value);
 	/*set sock to indicate server responded*/
@@ -121,6 +128,10 @@ int connectThread() {
 #endif 
 	if(strcmp(msgType,"GET")==0) {	
 	/*if get was sent*/
+		if(responsesG<Nr) {
+		/*not enough votes for get*/
+			exit(1);
+		}
 		int HVNO=selectServer();
 		inet_ntop(AF_INET,&(sockfd[HVNO].server_addr.sin_addr),str,INET_ADDRSTRLEN);
 		int port_final=ntohs(sockfd[HVNO].server_addr.sin_port);
@@ -131,6 +142,10 @@ int connectThread() {
 	}
 	else if(strcmp(msgType,"PUT")==0) {
 	/*if UPDATE was sent*/
+		if(responsesG<Nw) {
+		/*not enough votes for put*/
+			exit(1);
+		}
 		int HVNO=selectServer();
 		int new_vno=(keyVals_c[HVNO].vno)+1;
 		/*update all sockets which responded with vote*/
@@ -150,6 +165,7 @@ int connectThread() {
 }
 
 void main(int argc, char* argv[]) {
+	
 	strcpy(msgType,argv[4]);
 	strcpy(msgG,argv[4]);
 	strcat(msgG," ");

@@ -58,19 +58,23 @@ void* connectTo(void* sockfd) {
 	printf("rv is %d:data received from client is %s\n",rv, recv_data);
 #endif
 	if(rv==0 || rv==-1) {
+		/*receive timed out*/
 		perror("No Data From Server");
 		keyVals_c[myid].sock=-1;
 		pthread_exit(NULL);
 	}
+	/*atomically increment number of responses*/
 	int resO=responsesG;
 	int resN=resO+1;
 	while(compare_and_swap(&responsesG,resN,resO)!=resO) {
 		resO=responsesG;
 		resN=resO+1;
 	}
+	
 	sscanf(recv_data,"%d %s %s",&(keyVals_c[myid].vno),keyVals_c[myid].key,keyVals_c[myid].value);
 	/*set sock to indicate server responded*/
 	keyVals_c[myid].sock=sock.sockfd;
+		
 	if(strcmp(msgType,"PUT")==0) {
 		char retMsg[25];
 		sscanf(recv_data,"%s %*s",retMsg);
@@ -148,11 +152,15 @@ int connectThread() {
 		}
 		int HVNO=selectServer();
 		int new_vno=(keyVals_c[HVNO].vno)+1;
-		/*update all sockets which responded with vote*/
+		/*
+		 * update all sockets which responded with vote
+		 * i.e. sock in keyVals_c is not -1
+		 */
 		int i;
 		/*create update msg*/
 		memset(msgG,0,LENGTH);
 		sprintf(msgG,"update %s %s %d",keyG,valG,new_vno);
+		
 		for(i=0;i<N;i++) {
 			if(keyVals_c[i].sock!=-1) {
 				pthread_create(&t[i],NULL,connectTo,(void*)(&sockfd[i]));
@@ -175,6 +183,5 @@ void main(int argc, char* argv[]) {
 		strcpy(valG,argv[7]);
 	}
 	N=1;
-	//printf("msg is %s\n",msgG);
 	connectThread();
 }

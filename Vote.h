@@ -22,6 +22,8 @@ typedef struct keyVAL {
 	int sock;
 	int vno;
 	int lock;
+	int numGetters;
+	int condWaitLock;
 } keyval_t;
 
 

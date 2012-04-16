@@ -14,8 +14,14 @@
 #include <pthread.h>
 #include <time.h>
 #include <sys/time.h>
-
+#include "myatomic.h"
 
 char *itoa(int num);
 
+int atomicIncr(int *var);
 
+int atomicDecr(int *var);
+
+int lll_lock(int* lll_val);
+
+int lll_unlock(int* lll_val);

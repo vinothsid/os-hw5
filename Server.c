@@ -37,23 +37,35 @@ int getResponse(int sock,char *key) {
 #endif
 	char resMsg[MAX_MSG_SIZE];
 	keyval_t *keyval = searchKey(key);
-	if(keyval != NULL) {
+	if(keyval==NULL) {
+#ifdef DEBUG
+                printf("Error: Key: %s not found in the Key-Value Table\n",key);
+#endif
+                return -1;
+
+
+	}
+
+	lll_lock(&(keyval->condWaitLock));
+	if( keyval->lock == 0 ) {
+// incr getters of keyval
+		keyval->numGetters++;
+
+		lll_unlock(&(keyval->condWaitLock));
+
 		sprintf(resMsg,"%d %s %s",keyval->vno,keyval->key,keyval->value);
 #ifdef DEBUG
 		printf("Sending msg: %s\n",resMsg);
 #endif
 
 		send(sock,resMsg,strlen(resMsg)+1,0);
-		return 0;			
+//decr getters of keyval
 	}
 	else {
-#ifdef DEBUG
-                printf("Error: Key: %s not found in the Key-Value Table\n",key);
-#endif
-                return -1;
-
+		lll_unlock(&(keyval->condWaitLock));
 	}
-	
+
+	atomicDecr(&(keyval->numGetters));	
 }
 
 int putResponse(int sock,char *key,char *val) {
@@ -61,6 +73,36 @@ int putResponse(int sock,char *key,char *val) {
 	printf("PUT : key:%s value:%s \n",key,val);
 #endif
 
+	char resMsg[MAX_MSG_SIZE];
+	keyval_t *keyval = searchKey(key);
+
+/*
+	check lock;
+	check getters;
+	reply;
+	update;
+	releaselock;
+*/
+
+        if(keyval != NULL) {
+		lll_lock(&(keyval->condWaitLock));
+
+		lll_unlock(&(keyval->condWaitLock));
+                sprintf(resMsg,"%d %s %s",keyval->vno,keyval->key,keyval->value);
+#ifdef DEBUG
+                printf("Sending msg: %s\n",resMsg);
+#endif
+
+                send(sock,resMsg,strlen(resMsg)+1,0);
+                return 0;
+        }
+        else {
+#ifdef DEBUG
+                printf("Error: Key: %s not found in the Key-Value Table\n",key);
+#endif
+                return -1;
+
+        }
 
 }
 
@@ -68,8 +110,19 @@ int updateResponse(int sock,char *key,char *val,int vno) {
 #ifdef DEBUG
 	printf("update : key:%s value:%s vno:%d \n",key,val,vno);
 #endif
+	char resMsg[MAX_MSG_SIZE];
 
+	if ( updateKey(key,val,vno) == 0 ) {
+		sprintf(resMsg,"updatedone %s",key);
+		send(sock,resMsg,strlen(resMsg)+1,0);
+                return 0;
+	} else {
+#ifdef DEBUG
+		printf("Updating key %s with value %s failed\n",key,val);
+#endif
 
+		return -1;
+	}
 }
 
 int releaselockResponse(int sock,char *key) {

@@ -19,7 +19,7 @@
 #define LISTENQUEUE 10
 #define MAX_PARALLEL_CONNECTIONS 100
 #define MAX_MSG_SIZE 250
-#define TIMEOUT 10
+#define TIMEOUT 30
 #define MAXKEYS 1000
 #define MAX_KEY_SIZE 100
 #define MAX_VAL_SIZE 100
@@ -27,6 +27,7 @@
 
 keyval_t keyVals[MAXKEYS];
 int numKeys;
+int numKeysLock;
 
 void *serverThread (void *a);
 

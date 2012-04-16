@@ -39,7 +39,7 @@ int main(int argc,char *argv[])
             exit(1);
         }
 
-//        while(1)
+        while(1)
         {
 
            printf("\nSEND (q or Q to quit) : ");

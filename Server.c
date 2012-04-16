@@ -68,13 +68,28 @@ int getResponse(int sock,char *key) {
 	atomicDecr(&(keyval->numGetters));	
 }
 
+int initKeyValStruct( keyval_t *kv  ) {
+	memset(kv->key,0,KEYSIZE);
+	memset(kv->value,0,VALSIZE);
+	kv->sock = -1;
+	kv->vno =0 ;
+	kv->lock = 0;
+	kv->numGetters = 0;
+	kv->condWaitLock = 1;
+
+}
 int putResponse(int sock,char *key,char *val) {
 #ifdef DEBUG
 	printf("PUT : key:%s value:%s \n",key,val);
 #endif
 
 	char resMsg[MAX_MSG_SIZE];
+	char msg[MAX_MSG_SIZE];
+	char msgType[MAX_MSGTYPE_SIZE];
+	char keyNew[MAX_KEY_SIZE];
+	char valNew[MAX_VAL_SIZE];
 	keyval_t *keyval = searchKey(key);
+	int vno;
 
 /*
 	check lock;
@@ -83,26 +98,87 @@ int putResponse(int sock,char *key,char *val) {
 	update;
 	releaselock;
 */
+        if(keyval == NULL) {
+		lll_lock( &numKeysLock  );
+			keyval = &keyVals[numKeys];
+			numKeys++;
+		lll_unlock( &numKeysLock );	
+		
+		initKeyValStruct(keyval);
+		resMsg[0]='0';
+		resMsg[1]= 0;
+	} else {
 
-        if(keyval != NULL) {
-		lll_lock(&(keyval->condWaitLock));
+		sprintf(resMsg,"%d %s %s",keyval->vno,keyval->key,keyval->value);
+	}
+
+	lll_lock(&(keyval->condWaitLock));
+	if( keyval->lock == 0 && keyval->numGetters ==0 ) {
+		keyval->lock=1;
 
 		lll_unlock(&(keyval->condWaitLock));
-                sprintf(resMsg,"%d %s %s",keyval->vno,keyval->key,keyval->value);
+
 #ifdef DEBUG
-                printf("Sending msg: %s\n",resMsg);
+		printf("Sending msg: %s\n",resMsg);
 #endif
 
-                send(sock,resMsg,strlen(resMsg)+1,0);
-                return 0;
-        }
-        else {
-#ifdef DEBUG
-                printf("Error: Key: %s not found in the Key-Value Table\n",key);
-#endif
-                return -1;
+		send(sock,resMsg,strlen(resMsg)+1,0);
 
-        }
+		int res = recvTimeout(sock,msg,TIMEOUT,MAX_MSG_SIZE);
+
+		if(res > 0) {
+			sscanf(msg,"%s ",msgType);
+#ifdef DEBUG
+			printf("Received msg type: %s---\n",msgType);
+#endif
+			
+			if(strcmp(msgType,"update") == 0) {
+
+				sscanf(msg,"%*s %s %s %d",keyNew,valNew,&vno);
+				strcpy(keyval->key,keyNew);
+				updateResponse(sock,keyNew,valNew,vno);
+
+				res = recvTimeout(sock,msg,TIMEOUT,MAX_MSG_SIZE);
+				
+				if(res > 0) {
+					sscanf(msg,"%s ",msgType);
+#ifdef DEBUG
+					printf("Received msg type: %s old key:%s \n",msgType,keyNew);
+#endif
+
+					if(strcmp(msgType,"releaselock") == 0) {
+					//	sscanf(msg,"%*s %s",keyNew);
+						releaselockResponse(sock,keyNew);
+					} else {
+#ifdef DEBUG
+						printf("Expected releaselock msg , but found %s\n",msgType);
+#endif
+						releaselockResponse(sock,key);
+					}
+			
+				} 	
+			} else {
+#ifdef DEBUG
+				printf("Expected update msg , but found %s\n",msgType);
+#endif
+
+				releaselockResponse(sock,key);
+			}
+		} else {
+#ifdef DEBUG
+			printf("PUT timedout hence releasing lock\n");
+#endif				
+
+			releaselockResponse(sock,key);
+		}		
+
+	} else {
+
+		lll_unlock(&(keyval->condWaitLock));
+	}
+
+	return 0;
+
 
 }
 
@@ -130,7 +206,14 @@ int releaselockResponse(int sock,char *key) {
 	printf("releaselock : key:%s\n",key);
 #endif
 
+	keyval_t *kv = searchKey(key);
 
+	if(kv != NULL ) {
+		kv->lock = 0;
+		return 0;
+	} else {
+		return -1;
+	}
 }
 
 int responseServer(int sock,char*  msg) {
@@ -309,8 +392,10 @@ int main(int argc,char *argv[]) {
 	strcpy(keyVals[0].value,"value1");
 	keyVals[0].lock=0;
 	keyVals[0].vno=1;
+	keyVals[0].condWaitLock = 1;
 	numKeys=1;
 
+	numKeysLock = 1;
 	tcpServer(serverPort);
 
 }

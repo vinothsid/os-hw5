@@ -1,7 +1,7 @@
 #include "Client.h"
 #include "Util.h"
 #define LENGTH 1024
-#define client
+//#define client
 
 char msgG[LENGTH];
 char msgType[100];
@@ -42,7 +42,9 @@ void* connectTo(void* sockfd) {
 	int bytes_received;
 	char send_data[LENGTH],recv_data[LENGTH];
 	inet_ntop(AF_INET,&(sock.server_addr.sin_addr),str,INET_ADDRSTRLEN);
+#ifdef client
 	printf("ip addr is:%s\n",str);
+#endif
 	if (connect(sock.sockfd,(struct sockaddr *)&(sock.server_addr),
                     sizeof(struct sockaddr)) == -1)
 	{
@@ -106,7 +108,9 @@ int connectThread() {
 	struct sockDes* sockfd=(struct sockDes *)malloc(sizeof(struct sockDes)*N);
 	pthread_t* t=(pthread_t*)malloc(sizeof(pthread_t)*N);
 	for(i=0;i<N;i++) {
+#ifdef client
 		printf("%d connect attempt\n",i);
+#endif
 		(sockfd+i)->id=i;
 		if (((sockfd+i)->sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
 			perror("Socket");

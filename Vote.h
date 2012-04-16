@@ -1,4 +1,5 @@
 #include "Util.h"
+#include <stdio.h>
 #define KEYSIZE 50
 #define VALSIZE 50
 
@@ -8,7 +9,7 @@ PUT: put key value
 ********
 SENDVNO: vno key value //this ia a vote too
 ********
-UPDATE: update vno key value
+UPDATE: update key value vno
 ********
 UPDATEDONE: updatedone key
 ********
@@ -23,10 +24,5 @@ typedef struct keyVAL {
 	int lock;
 } keyval_t;
 
-keyval_t* searchKey(char* key);
-
-int updateKey(char* key, char* val, int vno);
-
-//char* create_msg(char* msg,char* key,char* val,int vno);
 
 

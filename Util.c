@@ -19,10 +19,13 @@ int recvTimeout(int sock,char* data,int timeout,int length) {
         //printf("return value from select is %d\n",rv);
         if(rv == -1) {
                 perror("select");
+		return rv;
         } else if(rv == 0) {
                 printf("Timeout occured!\n");
+		return rv;
         } else {
-                recv(sock,data,length,-1);/*data must be available*/
-        }
+                return recv(sock,data,length,0);/*data must be available*/
+        	;
+	}
 }
 

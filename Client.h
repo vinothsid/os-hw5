@@ -8,12 +8,14 @@
 #include <unistd.h>
 #include <errno.h>
 #include <pthread.h>
+#include "Vote.h"
 
 #define TIMEOUT 10
 struct sockDes {
 	int id;
         int sockfd;
         struct sockaddr_in server_addr;
+
 };
 
 keyval_t* keyVals_c;
@@ -32,8 +34,8 @@ void* connectTo(void* sockfd);
 */
 int connectThread();
 
-int responseClient(int sock, char* msg,); 
+int responseClient(int sock, char* msg); 
 
-keyval_t* selectServer();/*works on keyVals_c*/
+int selectServer();/*works on keyVals_c*/
 
 

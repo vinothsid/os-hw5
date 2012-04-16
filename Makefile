@@ -1,7 +1,7 @@
 all:
-	gcc Util.c -c -o Util.o
-	gcc Client.c Util.o -o client -lpthread
-	gcc Server.c Util.o -o server -lpthread
+	gcc -g Util.c -c -o Util.o
+	gcc -g Client.c Util.o -o client -lpthread
+	gcc -g Server.c Util.o -o server -lpthread
 client: Util
 	gcc Client.c Util.o -o client -lpthread
 Util:

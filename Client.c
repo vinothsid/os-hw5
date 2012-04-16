@@ -10,7 +10,7 @@ char valG[LENGTH];
 int Nr;
 int Nw;
 int N;
-int responsesG;
+int responsesG=0;
 /*
 int responseClient(int sock, char* msg) {
 	char send_data[LENGTH],recv_data[LENGTH];

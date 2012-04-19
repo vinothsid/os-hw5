@@ -53,7 +53,12 @@ int getResponse(int sock,char *key) {
 
 		lll_unlock(&(keyval->condWaitLock));
 
-		sprintf(resMsg,"%d %s %s",keyval->vno,keyval->key,keyval->value);
+		if ( lier == 0 )
+			sprintf(resMsg,"%d %s %s",keyval->vno,keyval->key,keyval->value);
+		else {
+			printf("LIER : lieing about value \n");
+			sprintf(resMsg,"%d %s %slie",keyval->vno,keyval->key,keyval->value);
+		}
 #ifdef DEBUG
 		printf("Sending msg: %s\n",resMsg);
 #endif
@@ -91,6 +96,8 @@ int putResponse(int sock,char *key,char *val) {
 	keyval_t *keyval = searchKey(key);
 	int vno;
 
+	memset(resMsg,0,MAX_MSG_SIZE);
+	memset(msg,0,MAX_MSG_SIZE);
 /*
 	check lock;
 	check getters;
@@ -127,9 +134,10 @@ int putResponse(int sock,char *key,char *val) {
 		int res = recvTimeout(sock,msg,TIMEOUT,MAX_MSG_SIZE);
 
 		if(res > 0) {
+
 			sscanf(msg,"%s ",msgType);
 #ifdef DEBUG
-			printf("Received msg type: %s---\n",msgType);
+			printf("Received msg:%s\nReceived msg type: %s---\n",msg,msgType);
 #endif
 			
 			if(strcmp(msgType,"update") == 0) {
@@ -137,6 +145,9 @@ int putResponse(int sock,char *key,char *val) {
 				sscanf(msg,"%*s %s %s %d",keyNew,valNew,&vno);
 				strcpy(keyval->key,keyNew);
 				updateResponse(sock,keyNew,valNew,vno);
+
+	
+				memset(msg,0,MAX_MSG_SIZE);
 
 				res = recvTimeout(sock,msg,TIMEOUT,MAX_MSG_SIZE);
 				
@@ -156,6 +167,12 @@ int putResponse(int sock,char *key,char *val) {
 						releaselockResponse(sock,key);
 					}
 			
+				} else {
+#ifdef DEBUG
+					printf("Expected res value > 0 , but received : %d\n",res);
+#endif
+					releaselockResponse(sock,key);
+					
 				} 	
 			} else {
 #ifdef DEBUG
@@ -187,6 +204,8 @@ int updateResponse(int sock,char *key,char *val,int vno) {
 	printf("update : key:%s value:%s vno:%d \n",key,val,vno);
 #endif
 	char resMsg[MAX_MSG_SIZE];
+	
+	memset(resMsg,0,MAX_MSG_SIZE);
 
 	if ( updateKey(key,val,vno) == 0 ) {
 		sprintf(resMsg,"updatedone %s",key);
@@ -376,6 +395,11 @@ int tcpServer( int port )
 
                 serverFd = (int *)malloc(sizeof(int));
                 *serverFd = new_fd;
+
+		if ( isReply() == 0 ) {
+			close(new_fd);
+			continue;
+		}
                 if(pthread_create(&threadID[threadCount],NULL,serverThread,(void *)serverFd)!=0){
                         printf("cannot create thread\n");
                 }
@@ -386,8 +410,31 @@ int tcpServer( int port )
         return 0;
 }
 
+int isReply () {
+        float x;
+        //srand(time(NULL));
+        x=rand() % 1024;
+        x=x/1024.0;
+        printf("Reply Probability number: %f expected value : %f \n",x,replyProbability);
+        if (x < replyProbability) {
+                return 1;
+        } else {
+                return 0;
+        }
+}
+
 int main(int argc,char *argv[]) {
+
+	if(argc != 4) {
+		printf("Usage : server <port> <prob of replying back> <lier > \n");
+		exit(1);
+	}
+	
 	int serverPort = atoi(argv[1]);
+
+	replyProbability = atof(argv[2]);
+	lier = atoi(argv[3]);
+
 	strcpy(keyVals[0].key,"key1");
 	strcpy(keyVals[0].value,"value1");
 	keyVals[0].lock=0;

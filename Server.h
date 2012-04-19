@@ -26,8 +26,10 @@
 #define MAX_MSGTYPE_SIZE 20
 
 keyval_t keyVals[MAXKEYS];
+float replyProbability;
 int numKeys;
 int numKeysLock;
+int lier;
 
 void *serverThread (void *a);
 

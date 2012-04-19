@@ -182,9 +182,10 @@ void main(int argc, char* argv[]) {
 	strcpy(msgG,argv[4]);
 	strcat(msgG," ");
 	strcat(msgG,argv[5]);
-	if(argc>6) {
-		strcpy(keyG,argv[6]);
-		strcpy(valG,argv[7]);
+	if(argc>=6) {
+		strcat(msgG," ");
+		strcat(keyG,argv[6]);
+		//strcpy(valG,argv[7]);
 	}
 	N=1;
 	connectThread();

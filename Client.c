@@ -58,6 +58,7 @@ void* connectTo(void* sockfd) {
 		int myid=sock.id;
 		keyVals_c[myid].sock=-1;
 		perror("Connect");
+		close(sock.sockfd);
 		pthread_exit(NULL);
 	}
 	send(sock.sockfd,msgG,strlen(msgG)+1,0);
@@ -73,6 +74,7 @@ void* connectTo(void* sockfd) {
 		/*receive timed out*/
 		perror("No Data From Server");
 		keyVals_c[myid].sock=-1;
+		close(sock.sockfd);
 		pthread_exit(NULL);
 	}
 	/*atomically increment number of responses*/
@@ -98,6 +100,8 @@ void* connectTo(void* sockfd) {
 			strcat(msgL,keyG);
 			send(sock.sockfd,msgL,strlen(msgL),0);
 		}
+	} else {
+		close(sock.sockfd);
 	}
 	/*
 	inet_ntop(AF_INET,&(sock.server_addr.sin_addr),str,INET_ADDRSTRLEN);

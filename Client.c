@@ -3,14 +3,14 @@
 #include "Util.h"
 #define LENGTH 1024
 //#define client
-#define N 3
+//#define N 3
 char msgG[LENGTH];
 char msgType[100];
 char keyG[LENGTH];
 char valG[LENGTH];
 int Nr;
 int Nw;
-//int N;
+int N;
 int responsesG=0;
 /*
 int responseClient(int sock, char* msg) {
@@ -55,6 +55,8 @@ void* connectTo(void* sockfd) {
 	if (sock.connectionExists==0 && connect(sock.sockfd,(struct sockaddr *)&(sock.server_addr),
                     sizeof(struct sockaddr)) == -1)
 	{
+		int myid=sock.id;
+		keyVals_c[myid].sock=-1;
 		perror("Connect");
 		pthread_exit(NULL);
 	}
@@ -108,11 +110,23 @@ int connectThread() {
 	struct hostent* host;
 	char str[INET_ADDRSTRLEN];
 	struct sockaddr_in server_addr;
-	char addrArray[N][64]={"192.168.1.106", "192.168.1.106","192.168.1.106"};
-	int port[N]={5020,5010,5000};
+	FILE* server_loc;
+	server_loc=fopen("server_loc.txt","r");
+	printf("N is %d\n",N);
+//	char addrArray[N][64]={"192.168.1.106", "192.168.1.106","192.168.1.106"};
+//	int port[N]={5020,5010,5000};
+	/*malloc addrArray and port*/
+	char** addrArray=(char**)malloc(sizeof(char*)*N);
+	int* port=(int*)malloc(sizeof(int)*N);
+	int i;
+	for(i=0;i<N;i++) {
+		addrArray[i]=malloc(sizeof(char)*64);
+		fscanf(server_loc,"%s %d",addrArray[i],&port[i]);
+		printf("read addr : %s port : %d\n",addrArray[i],port[i]);
+		
+	}
 	keyVals_c=(keyval_t*)malloc((sizeof(keyval_t))*N);
 	//printf("%s\n",addrArray[0]);
-	int i;
 	struct sockDes* sockfd=(struct sockDes *)malloc(sizeof(struct sockDes)*N);
 	pthread_t* t=(pthread_t*)malloc(sizeof(pthread_t)*N);
 	for(i=0;i<N;i++) {
@@ -168,6 +182,10 @@ int connectThread() {
 			exit(1);
 		}
 		int HVNO=selectServer();
+		if(HVNO==-1) {
+			perror("Write failure");
+			exit(1);
+		}
 		int new_vno=(keyVals_c[HVNO].vno)+1;
 		
 		printf("HVNO is : %d highest vno %d new_vno %d\n",HVNO,keyVals_c[HVNO].vno,new_vno);
@@ -206,6 +224,6 @@ void main(int argc, char* argv[]) {
 		//printf("msgG is %s argv[6] is %s\n",msgG,argv[6]);
 		//strcpy(valG,argv[7]);
 	}
-	//N=3;
+	N=atoi(argv[3]);
 	connectThread();
 }

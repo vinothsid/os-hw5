@@ -26,6 +26,7 @@
 #define MAX_MSGTYPE_SIZE 20
 
 keyval_t keyVals[MAXKEYS];
+int replyProbability;
 int numKeys;
 int numKeysLock;
 

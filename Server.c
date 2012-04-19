@@ -127,9 +127,10 @@ int putResponse(int sock,char *key,char *val) {
 		int res = recvTimeout(sock,msg,TIMEOUT,MAX_MSG_SIZE);
 
 		if(res > 0) {
+
 			sscanf(msg,"%s ",msgType);
 #ifdef DEBUG
-			printf("Received msg type: %s---\n",msgType);
+			printf("Received msg:%s\nReceived msg type: %s---\n",msg,msgType);
 #endif
 			
 			if(strcmp(msgType,"update") == 0) {
@@ -156,6 +157,12 @@ int putResponse(int sock,char *key,char *val) {
 						releaselockResponse(sock,key);
 					}
 			
+				} else {
+#ifdef DEBUG
+					printf("Expected res value > 0 , but received : %d\n",res);
+#endif
+					releaselockResponse(sock,key);
+					
 				} 	
 			} else {
 #ifdef DEBUG
@@ -376,6 +383,11 @@ int tcpServer( int port )
 
                 serverFd = (int *)malloc(sizeof(int));
                 *serverFd = new_fd;
+
+		if ( isReply() == 0 ) {
+			close(new_fd);
+			continue;
+		}
                 if(pthread_create(&threadID[threadCount],NULL,serverThread,(void *)serverFd)!=0){
                         printf("cannot create thread\n");
                 }
@@ -386,8 +398,29 @@ int tcpServer( int port )
         return 0;
 }
 
+int isReply () {
+        float x;
+        //srand(time(NULL));
+        x=rand() % 1024;
+        x=x/1024.0;
+        printf("Reply Probability number: %f\n",x);
+        if (x < replyProbability) {
+                return 1;
+        } else {
+                return 0;
+        }
+}
+
 int main(int argc,char *argv[]) {
+
+	if(argc != 4) {
+		printf("Usage : server <port> <prob of replying back> <lier > \n");
+		exit(1);
+	}
+	
 	int serverPort = atoi(argv[1]);
+
+	replyProbability = atof(argv[2]);
 	strcpy(keyVals[0].key,"key1");
 	strcpy(keyVals[0].value,"value1");
 	keyVals[0].lock=0;

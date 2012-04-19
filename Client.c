@@ -1,15 +1,16 @@
 #include "Client.h"
+
 #include "Util.h"
 #define LENGTH 1024
 //#define client
-
+#define N 3
 char msgG[LENGTH];
 char msgType[100];
 char keyG[LENGTH];
 char valG[LENGTH];
 int Nr;
 int Nw;
-int N;
+//int N;
 int responsesG=0;
 /*
 int responseClient(int sock, char* msg) {
@@ -40,25 +41,32 @@ void* connectTo(void* sockfd) {
 	char str[INET_ADDRSTRLEN];
 	struct sockDes sock=*(struct sockDes *)sockfd;
 	int bytes_received;
+	int yes=1;
 	char send_data[LENGTH],recv_data[LENGTH];
 	inet_ntop(AF_INET,&(sock.server_addr.sin_addr),str,INET_ADDRSTRLEN);
-#ifdef client
-	printf("ip addr is:%s\n",str);
-#endif
-	if (connect(sock.sockfd,(struct sockaddr *)&(sock.server_addr),
+//#ifdef client
+	printf("ip addr is:%s connectionExists %d\n",str,sock.connectionExists);
+//#endif
+	if (setsockopt(sock.sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,sizeof(int)) == -1) {
+                perror("setsockopt");
+                exit(1);
+        }
+
+	if (sock.connectionExists==0 && connect(sock.sockfd,(struct sockaddr *)&(sock.server_addr),
                     sizeof(struct sockaddr)) == -1)
 	{
 		perror("Connect");
 		pthread_exit(NULL);
 	}
-	send(sock.sockfd,msgG,strlen(msgG),0);
+	send(sock.sockfd,msgG,strlen(msgG)+1,0);
 	
 	int myid=sock.id;
 	memset(recv_data,0,LENGTH);/*zero data to check if something is received*/
 	int rv=recvTimeout(sock.sockfd,recv_data,TIMEOUT,LENGTH);
-#ifdef client
+//#ifdef client
+	printf("sending data %s to %s at %d\n",msgG,str,ntohs(sock.server_addr.sin_port));
 	printf("rv is %d:data received from client is %s\n",rv, recv_data);
-#endif
+//#endif
 	if(rv==0 || rv==-1) {
 		/*receive timed out*/
 		perror("No Data From Server");
@@ -100,8 +108,8 @@ int connectThread() {
 	struct hostent* host;
 	char str[INET_ADDRSTRLEN];
 	struct sockaddr_in server_addr;
-	char addrArray[2][64]={"192.168.1.106", "192.168.1.106"};
-	int port[2]={5000,5010};
+	char addrArray[N][64]={"192.168.1.106", "192.168.1.106","192.168.1.106"};
+	int port[N]={5020,5010,5000};
 	keyVals_c=(keyval_t*)malloc((sizeof(keyval_t))*N);
 	//printf("%s\n",addrArray[0]);
 	int i;
@@ -120,7 +128,8 @@ int connectThread() {
 		(sockfd+i)->server_addr.sin_port=htons(port[i]);
 		host = gethostbyname(addrArray[i]);
 		(sockfd+i)->server_addr.sin_addr = *((struct in_addr *)host->h_addr);
-		bzero(&((sockfd+i)->server_addr.sin_zero),8); 
+		bzero(&((sockfd+i)->server_addr.sin_zero),8);
+		sockfd[i].connectionExists=0; 
 		pthread_create(&t[i],NULL,connectTo,(void*)(&sockfd[i]));
 	}
 	for(i=0;i<N;i++) {
@@ -141,6 +150,10 @@ int connectThread() {
 			exit(1);
 		}
 		int HVNO=selectServer();
+		if(HVNO==-1) {
+			perror("HVNO is -1");
+			exit(1);
+		}
 		inet_ntop(AF_INET,&(sockfd[HVNO].server_addr.sin_addr),str,INET_ADDRSTRLEN);
 		int port_final=ntohs(sockfd[HVNO].server_addr.sin_port);
 		printf("highest version no at %s %d\n",str,port_final);	
@@ -156,6 +169,8 @@ int connectThread() {
 		}
 		int HVNO=selectServer();
 		int new_vno=(keyVals_c[HVNO].vno)+1;
+		
+		printf("HVNO is : %d highest vno %d new_vno %d\n",HVNO,keyVals_c[HVNO].vno,new_vno);
 		/*
 		 * update all sockets which responded with vote
 		 * i.e. sock in keyVals_c is not -1
@@ -166,6 +181,7 @@ int connectThread() {
 		sprintf(msgG,"update %s %s %d",keyG,valG,new_vno);
 		
 		for(i=0;i<N;i++) {
+			sockfd[i].connectionExists=1;
 			if(keyVals_c[i].sock!=-1) {
 				pthread_create(&t[i],NULL,connectTo,(void*)(&sockfd[i]));
 			}
@@ -182,11 +198,14 @@ void main(int argc, char* argv[]) {
 	strcpy(msgG,argv[4]);
 	strcat(msgG," ");
 	strcat(msgG,argv[5]);
-	if(argc>=6) {
+	if(argc>6) {
 		strcat(msgG," ");
-		strcat(keyG,argv[6]);
+		strcat(msgG,argv[6]);
+		strcpy(keyG,argv[5]);
+		strcpy(valG,argv[6]);
+		//printf("msgG is %s argv[6] is %s\n",msgG,argv[6]);
 		//strcpy(valG,argv[7]);
 	}
-	N=1;
+	//N=3;
 	connectThread();
 }

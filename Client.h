@@ -14,6 +14,7 @@
 struct sockDes {
 	int id;
         int sockfd;
+	int connectionExists;
         struct sockaddr_in server_addr;
 
 };

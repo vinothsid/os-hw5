@@ -53,7 +53,12 @@ int getResponse(int sock,char *key) {
 
 		lll_unlock(&(keyval->condWaitLock));
 
-		sprintf(resMsg,"%d %s %s",keyval->vno,keyval->key,keyval->value);
+		if ( lier == 0 )
+			sprintf(resMsg,"%d %s %s",keyval->vno,keyval->key,keyval->value);
+		else {
+			printf("LIER : lieing about value \n");
+			sprintf(resMsg,"%d %s %slie",keyval->vno,keyval->key,keyval->value);
+		}
 #ifdef DEBUG
 		printf("Sending msg: %s\n",resMsg);
 #endif
@@ -91,6 +96,8 @@ int putResponse(int sock,char *key,char *val) {
 	keyval_t *keyval = searchKey(key);
 	int vno;
 
+	memset(resMsg,0,MAX_MSG_SIZE);
+	memset(msg,0,MAX_MSG_SIZE);
 /*
 	check lock;
 	check getters;
@@ -138,6 +145,9 @@ int putResponse(int sock,char *key,char *val) {
 				sscanf(msg,"%*s %s %s %d",keyNew,valNew,&vno);
 				strcpy(keyval->key,keyNew);
 				updateResponse(sock,keyNew,valNew,vno);
+
+	
+				memset(msg,0,MAX_MSG_SIZE);
 
 				res = recvTimeout(sock,msg,TIMEOUT,MAX_MSG_SIZE);
 				
@@ -194,6 +204,8 @@ int updateResponse(int sock,char *key,char *val,int vno) {
 	printf("update : key:%s value:%s vno:%d \n",key,val,vno);
 #endif
 	char resMsg[MAX_MSG_SIZE];
+	
+	memset(resMsg,0,MAX_MSG_SIZE);
 
 	if ( updateKey(key,val,vno) == 0 ) {
 		sprintf(resMsg,"updatedone %s",key);
@@ -403,7 +415,7 @@ int isReply () {
         //srand(time(NULL));
         x=rand() % 1024;
         x=x/1024.0;
-        printf("Reply Probability number: %f\n",x);
+        printf("Reply Probability number: %f expected value : %f \n",x,replyProbability);
         if (x < replyProbability) {
                 return 1;
         } else {
@@ -421,6 +433,8 @@ int main(int argc,char *argv[]) {
 	int serverPort = atoi(argv[1]);
 
 	replyProbability = atof(argv[2]);
+	lier = atoi(argv[3]);
+
 	strcpy(keyVals[0].key,"key1");
 	strcpy(keyVals[0].value,"value1");
 	keyVals[0].lock=0;

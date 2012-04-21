@@ -2,6 +2,7 @@
 #include "log_fs.h"
 #endif
 #include <stdbool.h>
+#include <assert.h>
 #define METADATA_CACHE 1
 #define WRITE_BACK 4
 #define NORMAL 0

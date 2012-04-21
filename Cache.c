@@ -1,5 +1,4 @@
 #include "Cache.h"
-#include <assert.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -200,7 +199,8 @@ static int evict_cache_block(CACHE c,CBLK cache_blk) {
 }
 */
 void print_cache_block(CBLK cblock) {
-	
+
+	printf("========= CACHE BLOCK CONTENTS =============");	
 	if(cblock->mdata != NULL) {
 		printf("File Name: %s\n",cblock->mdata->file_name);
 		printf("Number of paths: %d\n",cblock->mdata->num_paths);
@@ -219,6 +219,7 @@ void print_cache_block(CBLK cblock) {
 		printf("Offset : %d\n",cblock->offset);
 		printf("Buffer content:%s\n",cblock->buf);
 	}
+	printf("=============================================");
 }
 
 void print_cache(CACHE c) {

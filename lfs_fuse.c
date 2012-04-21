@@ -28,6 +28,7 @@
 #define LOAD_PATH "/home/vino/Desktop/serverfilesystem"
 #define MDATA_PATH "/home/vino/Desktop/ESS/metadata/"
 #define CHUNK_PATH "/home/vino/Desktop/ESS/Chunks/"
+#define MDATA_CBLK_WRITE_THROUGH 1
 
 static char load_path[500];
 CACHE meta_data_cache;
@@ -400,10 +401,11 @@ static int lfs_write(const char *path, const char *buf, size_t size,
 	strcat(load_path,path);
 	
 	CBLK meta_data_block = find_meta_data_block(meta_data_cache,path+1);
-	if(meta_data_block == NULL)
+	if( meta_data_block == NULL )
         {
-		meta_data_block = mdata_from_disk_to_memory(path);
 		printf("meta_data_block is not found in cache , hence allocating new\n");
+		meta_data_block = mdata_from_disk_to_memory(path);
+		print_cache_block(meta_data_block);
 	} else {
 		printf("meta_data_block already found in cache\n");
 	}
@@ -411,22 +413,30 @@ static int lfs_write(const char *path, const char *buf, size_t size,
 	CBLK wbuf_data_block = find_meta_data_block(buffer_cache,path+1);
 	if(wbuf_data_block == NULL)
 	{
+		printf("wbuf is not found in cache and hence allocating new\n");
 		wbuf_data_block = get_free_cache_block(buffer_cache,&result);
+
+		assert(wbuf_data_block);
 		if(result == WRITE_BACK)
 		{
 			write_buffer_to_disk(wbuf_data_block,CHUNK_PATH,buffer_cache);
+#ifdef MDATA_CBLK_WRITE_THROUGH
+			write_metadata_to_disk(wbuf_data_block->mdata,MDATA_PATH);	
+#endif
 			printf("Evicting old cache block\n");
 		}
 		wbuf_data_block->mdata = meta_data_block->mdata;
-		printf("wbuf is not found in cache and hence allocating new\n");
 	} else {
 		printf("wbuf already found in cache\n");
 	}
 	
 	if(wbuf_data_block->offset + strlen(buf) > buffer_cache->cache_block_size)
 	{
-		write_buffer_to_disk(wbuf_data_block,CHUNK_PATH,buffer_cache);
 		printf("cache_block buffer full and is written to disk\n");
+		write_buffer_to_disk(wbuf_data_block,CHUNK_PATH,buffer_cache);
+#ifdef MDATA_CBLK_WRITE_THROUGH
+		write_metadata_to_disk(wbuf_data_block->mdata,MDATA_PATH);	
+#endif
 	} else {
 		printf("appending to cache block buffer\n");
 	}

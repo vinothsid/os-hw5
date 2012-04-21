@@ -9,6 +9,7 @@ typedef struct lfs_meta_data {
 	char file_name[MAX_FILE_NAME_SIZE];
 	int num_paths;
 	char path[MAX_PATHS][MAX_PATH_NAME_SIZE];
+	int size;
 } MDATA;
 
 	

@@ -50,6 +50,9 @@ int write_metadata_to_disk(MDATA *mdata, char *mdata_path)
 	strcat(buf,"NumPaths:");
         sprintf(buf+strlen(buf),"%d",mdata->num_paths);
         strcat(buf,"\n");
+	strcat(buf,"Size:");
+	sprintf(buf+strlen(buf),"%d",mdata->size);
+        strcat(buf,"\n");
 	strcat(buf,"Paths:");
 	int i;
 	for(i=0;i < mdata->num_paths;i++)
@@ -95,7 +98,11 @@ CBLK mdata_from_disk_to_memory(char *filepath)
 	else
 	{
 		char paths[MAX_MDATA_FILE_SIZE];
-		sscanf(buf,"FileName:%s\nNumPaths:%d\nPaths:%s\n",new_mdata_block->mdata->file_name,&(new_mdata_block->mdata->num_paths),paths);
+		if ( sscanf(buf,"Filename:%s\nNumPaths:%d\nSize:%d\nPaths:%s",new_mdata_block->mdata->file_name,&(new_mdata_block->mdata->size),&(new_mdata_block->mdata->num_paths),paths) != 3 ) {
+			printf("parsing metadata file failed\n");
+		} else {
+			printf("Metadata parsed for file:%s , numpaths : %d all paths:%s\n",new_mdata_block->mdata->file_name,&(new_mdata_block->mdata->num_paths),paths);
+		}
 		
 		int i=0;
 		int j=0;
@@ -110,6 +117,7 @@ CBLK mdata_from_disk_to_memory(char *filepath)
 			j++;
 			new_mdata_block->mdata->path[i][offset] = '\0';
 		}
+		return new_mdata_block;
 	}	
 }
 
@@ -366,6 +374,8 @@ static int lfs_read(const char *path, char *buf, size_t size, off_t offset,
 	char temp1[1000];
        
 	(void) fi;
+
+
 /*	char spath[500];
 	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
 	strcat(spath,path);
@@ -412,6 +422,7 @@ static int lfs_write(const char *path, const char *buf, size_t size,
         {
 		printf("meta_data_block is not found in cache , hence allocating new\n");
 		meta_data_block = mdata_from_disk_to_memory(path);
+		assert(meta_data_block);
 		print_cache_block(meta_data_block);
 	} else {
 		printf("meta_data_block already found in cache\n");

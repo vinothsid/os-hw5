@@ -338,6 +338,7 @@ int write_buffer_to_disk( CBLK wb_block ,char *chunk_path,CACHE buffer_cache) {
 			fd = open(chunk_file_name,O_CREAT|O_RDWR,0777);
 			printf("file : %s File descriptor:%d\n",chunk_file_name,fd);
 			write(fd,wb_block->buf+startOffset,offset-startOffset);		
+			wb_block->mdata->size += offset-startOffset;
 
 			printf("Current buf start : %d , buf end : %d\n",startOffset,offset);
 			write(1,wb_block->buf+startOffset,offset-startOffset);
@@ -370,6 +371,7 @@ int write_buffer_to_disk( CBLK wb_block ,char *chunk_path,CACHE buffer_cache) {
 	fd = open(chunk_file_name,O_CREAT|O_RDWR,0777);
 
 	write(fd,wb_block->buf+startOffset,offset-startOffset);
+	wb_block->mdata->size += offset-startOffset;
 
 	printf("Current buf start : %d , buf end : %d\n",startOffset,offset);
 	write(1,wb_block->buf+startOffset,offset-startOffset);

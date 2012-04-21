@@ -456,7 +456,7 @@ static int lfs_write(const char *path, const char *buf, size_t size,
 		write_metadata_to_disk(wbuf_data_block->mdata,MDATA_PATH);	
 #endif
 
-		printf("Buffer contents after writing to disk:%s\n",buf);
+		printf("Buffer contents after writing to disk:%s********",buf);
 	} else {
 		printf("appending to cache block buffer\n");
 	}

@@ -319,6 +319,7 @@ int write_buffer_to_disk( CBLK wb_block ,char *chunk_path,CACHE buffer_cache) {
 
 	int id=0;
 	char chunk_file_name[MAX_FILE_NAME_SIZE];
+	struct stat statbuf;
 
 	while(sscanf(wb_block->buf+offset,"%[^\n]\n",line) == 1 ) {
 //		printf("%s\n",line);
@@ -335,17 +336,26 @@ int write_buffer_to_disk( CBLK wb_block ,char *chunk_path,CACHE buffer_cache) {
 			strcat(chunk_file_name,"-");
 			strcat(chunk_file_name,startTime);
 
-			fd = open(chunk_file_name,O_CREAT|O_RDWR,0777);
-			printf("file : %s File descriptor:%d\n",chunk_file_name,fd);
-			write(fd,wb_block->buf+startOffset,offset-startOffset);		
+			if ( stat(chunk_file_name,&statbuf) == -1 ) {		
+
+				fd = open(chunk_file_name,O_CREAT|O_RDWR,0777);
+				printf("NEW file : %s File descriptor:%d\n",chunk_file_name,fd);
+				write(fd,wb_block->buf+startOffset,offset-startOffset);		
+				close(fd);
+
+				strcpy(wb_block->mdata->path[wb_block->mdata->num_paths++],chunk_file_name);
+			} else {
+				fd = open(chunk_file_name,O_APPEND|O_RDWR,0777);
+				printf("APPENDING file : %s File descriptor:%d\n",chunk_file_name,fd);
+				write(fd,wb_block->buf+startOffset,offset-startOffset);		
+				close(fd);
+
+			}
 			wb_block->mdata->size += offset-startOffset;
 
 			printf("Current buf start : %d , buf end : %d\n",startOffset,offset);
 			write(1,wb_block->buf+startOffset,offset-startOffset);
 			printf("==============\n");
-			close(fd);
-
-			strcpy(wb_block->mdata->path[wb_block->mdata->num_paths++],chunk_file_name);
 
 			sscanf(timestamp,"%*[^ ] %*[^ ] %*[^ ] %[^ ] %*[^ ] %*s",startTime);
 			startOffset = offset; 
@@ -368,8 +378,13 @@ int write_buffer_to_disk( CBLK wb_block ,char *chunk_path,CACHE buffer_cache) {
 	strcat(chunk_file_name,"-");
 	strcat(chunk_file_name,startTime);
 
-	fd = open(chunk_file_name,O_CREAT|O_RDWR,0777);
-
+	if ( stat(chunk_file_name,&statbuf) == -1 ) {
+		fd = open(chunk_file_name,O_CREAT|O_RDWR,0777);
+		strcpy(wb_block->mdata->path[wb_block->mdata->num_paths++],chunk_file_name);
+	} else {
+		fd = open(chunk_file_name,O_APPEND|O_RDWR,0777);
+	
+	}
 	write(fd,wb_block->buf+startOffset,offset-startOffset);
 	wb_block->mdata->size += offset-startOffset;
 
@@ -378,7 +393,6 @@ int write_buffer_to_disk( CBLK wb_block ,char *chunk_path,CACHE buffer_cache) {
 	printf("==============\n");
 	close(fd);
 
-	strcpy(wb_block->mdata->path[wb_block->mdata->num_paths++],chunk_file_name);
 
 	memset(wb_block->buf,0,buffer_cache->cache_block_size);
 	strcpy(wb_block->buf,line);

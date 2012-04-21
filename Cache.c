@@ -322,7 +322,10 @@ int write_buffer_to_disk( CBLK wb_block ,char *chunk_path,CACHE buffer_cache) {
 
 	while(sscanf(wb_block->buf+offset,"%[^\n]\n",line) == 1 ) {
 //		printf("%s\n",line);
-		sscanf(line,"%*[^|]|%[^|]|%*s",timestamp);
+		if ( sscanf(line,"%*[^|]|%[^|]|%*s",timestamp) != 1 ) {
+			printf("LINE IS NOT COMPLETE\n");
+			break;
+		}
 		//printf("Time : %s\n",timestamp);
 		if(  is_dates_equal(timestamp,lastSeenDate) == 0 ) {
 			strcpy(chunk_file_name,chunk_path);
@@ -352,6 +355,7 @@ int write_buffer_to_disk( CBLK wb_block ,char *chunk_path,CACHE buffer_cache) {
 		}
 
 		offset += strlen(line) + 1 ;
+		printf("Offset: %d line : %s\n",offset,line);
 		
 	}
 
@@ -364,6 +368,7 @@ int write_buffer_to_disk( CBLK wb_block ,char *chunk_path,CACHE buffer_cache) {
 	strcat(chunk_file_name,startTime);
 
 	fd = open(chunk_file_name,O_CREAT|O_RDWR,0777);
+
 	write(fd,wb_block->buf+startOffset,offset-startOffset);
 
 	printf("Current buf start : %d , buf end : %d\n",startOffset,offset);
@@ -374,6 +379,8 @@ int write_buffer_to_disk( CBLK wb_block ,char *chunk_path,CACHE buffer_cache) {
 	strcpy(wb_block->mdata->path[wb_block->mdata->num_paths++],chunk_file_name);
 
 	memset(wb_block->buf,0,buffer_cache->cache_block_size);
+	strcpy(wb_block->buf,line);
+	printf("REMAINING BUF CONTENT : %s\n",wb_block->buf);
         wb_block->offset = 0;
 	
 }

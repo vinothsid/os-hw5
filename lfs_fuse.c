@@ -98,8 +98,9 @@ CBLK mdata_from_disk_to_memory(char *filepath)
 	else
 	{
 		char paths[MAX_MDATA_FILE_SIZE];
-		if ( sscanf(buf,"Filename:%s\nNumPaths:%d\nSize:%d\nPaths:%s",new_mdata_block->mdata->file_name,&(new_mdata_block->mdata->size),&(new_mdata_block->mdata->num_paths),paths) != 3 ) {
+		if ( sscanf(buf,"Filename:%s\nNumPaths:%d\nSize:%d\nPaths:%s",new_mdata_block->mdata->file_name,&(new_mdata_block->mdata->num_paths),&(new_mdata_block->mdata->size),paths) != 4 ) {
 			printf("parsing metadata file failed\n");
+			return NULL;
 		} else {
 			printf("Metadata parsed for file:%s , numpaths : %d all paths:%s\n",new_mdata_block->mdata->file_name,&(new_mdata_block->mdata->num_paths),paths);
 		}
@@ -117,6 +118,7 @@ CBLK mdata_from_disk_to_memory(char *filepath)
 			j++;
 			new_mdata_block->mdata->path[i][offset] = '\0';
 		}
+		update_lru(meta_data_cache,new_mdata_block);
 		return new_mdata_block;
 	}	
 }
@@ -129,12 +131,49 @@ CBLK mdata_from_disk_to_memory(char *filepath)
 static int lfs_getattr(const char *path, struct stat *stbuf)
 {
 	int res;
-	strcpy(load_path,LOAD_PATH);
-	strcat(load_path,path);
-	res = lstat(load_path, stbuf);
-	
+	char final_path[MAX_PATH_NAME_SIZE];
+
+	strcpy(final_path,MDATA_PATH);
+	strcat(final_path,path);
+	res = lstat(final_path, stbuf);
+
 	if (res == -1)
 		return -errno;
+
+	if(strcmp(path,"/") == 0 )
+		return 0;
+
+	if(path[1] == '.' ) // For all special files starting with '.' just return the stbuf that is returned from lstat
+		return 0;
+
+	CBLK meta_data_block = find_meta_data_block(meta_data_cache,path+1);
+
+	if ( meta_data_block == NULL ) {
+		meta_data_block = mdata_from_disk_to_memory(path);
+		assert(meta_data_block);
+                printf("GETATTR : meta_data_block is not found in cache , hence allocating new\n");
+	} else {
+		update_lru(meta_data_cache,meta_data_block);
+	}
+        print_cache_block(meta_data_block);
+
+	print_cache(buffer_cache);
+	CBLK wbuf_data_block = find_meta_data_block(buffer_cache,path+1);
+
+        if( wbuf_data_block == NULL )
+        {
+
+		stbuf->st_size = meta_data_block->mdata->size;
+        } else {
+	
+		update_lru(buffer_cache,wbuf_data_block);	
+                printf("GETATTR: wbuf_data_block already found in cache\n");
+		print_cache_block(wbuf_data_block);
+		stbuf->st_size = meta_data_block->mdata->size + wbuf_data_block->offset;
+        }
+
+	printf("ST_BUF_SIZE : %d\n",stbuf->st_size); 
+		
 
 	return 0;
 }
@@ -211,6 +250,8 @@ static int lfs_mknod(const char *path, mode_t mode, dev_t rdev)
                 CBLK new_block = get_free_cache_block(meta_data_cache,&result);
 		strcpy(new_block->mdata->file_name,path+1);
 		new_block->mdata->num_paths = 0;
+		new_block->mdata->size = 0;
+		update_lru(meta_data_cache,new_block);
 
 		write_metadata_to_disk(new_block->mdata,MDATA_PATH);	
 	//	if(mdata_file_res < 0)
@@ -426,6 +467,7 @@ static int lfs_write(const char *path, const char *buf, size_t size,
 		print_cache_block(meta_data_block);
 	} else {
 		printf("meta_data_block already found in cache\n");
+		update_lru(meta_data_cache,meta_data_block);
 	}
 
 	CBLK wbuf_data_block = find_meta_data_block(buffer_cache,path+1);
@@ -446,6 +488,7 @@ static int lfs_write(const char *path, const char *buf, size_t size,
 		wbuf_data_block->mdata = meta_data_block->mdata;
 	} else {
 		printf("wbuf already found in cache\n");
+		
 	}
 	
 	if(wbuf_data_block->offset + strlen(buf) > buffer_cache->cache_block_size)
@@ -460,7 +503,8 @@ static int lfs_write(const char *path, const char *buf, size_t size,
 	} else {
 		printf("appending to cache block buffer\n");
 	}
-	
+
+	update_lru(buffer_cache,wbuf_data_block);	
 	strcat(wbuf_data_block->buf,buf);
 	wbuf_data_block->offset += strlen(buf);
 

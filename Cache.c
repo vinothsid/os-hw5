@@ -163,7 +163,7 @@ CBLK find_meta_data_block(CACHE c,char *file_name) {
 
 }
 
-static int update_lru(CACHE c,CBLK cache_blk ) {
+int update_lru(CACHE c,CBLK cache_blk ) {
 	int i=0;
 
 	for(i=0;i<c->num_blocks;i++) {
@@ -200,10 +200,11 @@ static int evict_cache_block(CACHE c,CBLK cache_blk) {
 */
 void print_cache_block(CBLK cblock) {
 
-	printf("========= CACHE BLOCK CONTENTS =============");	
+	printf("========= CACHE BLOCK CONTENTS =============\n");	
 	if(cblock->mdata != NULL) {
 		printf("File Name: %s\n",cblock->mdata->file_name);
 		printf("Number of paths: %d\n",cblock->mdata->num_paths);
+		printf("Size: %d\n",cblock->mdata->size);
 		int i=0;
 		for(i=0;i < cblock->mdata->num_paths;i++) {
 			printf("%s\n",cblock->mdata->path[i]);
@@ -219,7 +220,7 @@ void print_cache_block(CBLK cblock) {
 		printf("Offset : %d\n",cblock->offset);
 		printf("Buffer content:%s\n",cblock->buf);
 	}
-	printf("=============================================");
+	printf("=============================================\n");
 }
 
 void print_cache(CACHE c) {

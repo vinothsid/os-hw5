@@ -55,7 +55,7 @@ CBLK get_free_cache_block(CACHE c,int *result);
 int read_cache_block(CACHE c,MDATA *meta_data,char *out_buf,int *buf_len);
 
 /* Update the lru_counter of the Cache c */
-static int update_lru(CACHE c,CBLK cache_cblk );
+int update_lru(CACHE c,CBLK cache_cblk );
 
 /* Find the cache block in the WRITE_BUFFER which corresponds to meta_data */
 static CBLK find_cache_block(CACHE c,MDATA *meta_data);

@@ -162,7 +162,6 @@ static int lfs_getattr(const char *path, struct stat *stbuf)
 
         if( wbuf_data_block == NULL )
         {
-
 		stbuf->st_size = meta_data_block->mdata->size;
         } else {
 	
@@ -172,8 +171,8 @@ static int lfs_getattr(const char *path, struct stat *stbuf)
 		stbuf->st_size = meta_data_block->mdata->size + wbuf_data_block->offset;
         }
 
+	stbuf->st_size += meta_data_block->mdata->num_paths;
 	printf("ST_BUF_SIZE : %d\n",stbuf->st_size); 
-		
 
 	return 0;
 }
@@ -416,6 +415,49 @@ static int lfs_read(const char *path, char *buf, size_t size, off_t offset,
        
 	(void) fi;
 
+	printf("\n\n\nIn lfs_read. size %d offset %d \n\n",size,offset);
+
+        CBLK meta_data_block = find_meta_data_block(meta_data_cache,path+1);
+
+        if ( meta_data_block == NULL ) {
+                meta_data_block = mdata_from_disk_to_memory(path);
+                assert(meta_data_block);
+                printf("GETATTR : meta_data_block is not found in cache , hence allocating new\n");
+        } else {
+                update_lru(meta_data_cache,meta_data_block);
+        }
+
+//        print_cache_block(meta_data_block);
+
+  //      print_cache(buffer_cache);
+
+
+	FILE *fptr;
+	int numBytes = 0;
+	int bufOffset = 0;
+
+	int i;
+	for(i=0;i<meta_data_block->mdata->num_paths;i++) {
+		fptr = fopen(meta_data_block->mdata->path[i],"r");
+		printf("\nbufOffset : %d\n",bufOffset);
+		numBytes = fread(buf+bufOffset,1,meta_data_block->mdata->size,fptr);
+		buf[bufOffset+numBytes] = '\n';
+//		buf[bufOffset+numBytes+1] = '\0';
+		bufOffset += numBytes+1 ;
+		fclose(fptr);
+
+
+	}
+
+	buf[bufOffset] = '\0';
+	
+        CBLK wbuf_data_block = find_meta_data_block(buffer_cache,path+1);
+	if(wbuf_data_block != NULL) {
+		strcat(buf,wbuf_data_block->buf);
+		bufOffset += strlen(wbuf_data_block->buf);
+	}
+
+	return bufOffset;
 
 /*	char spath[500];
 	strcpy(spath,"/home/vino/Desktop/serverfilesystem");
@@ -443,12 +485,12 @@ static int lfs_read(const char *path, char *buf, size_t size, off_t offset,
 	printf("size is %d",size);
 	if (res == -1)
 		res = -errno;
-*/
 	memset(buf,0,40);
 	strcpy(buf,"helllllllllllllllllllllllllllllllllo");
 
 	//close(fd);
 	return strlen(buf);
+*/
 }
 
 static int lfs_write(const char *path, const char *buf, size_t size,

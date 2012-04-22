@@ -299,6 +299,9 @@ int write_buffer_to_disk( CBLK wb_block ,char *chunk_path,CACHE buffer_cache) {
 	int startOffset = 0;
 	int offset=0;
 	char line[MAX_LINE_SIZE];
+	
+	memset(line,0,MAX_LINE_SIZE);
+
 	char timestamp[50];
 	char lastSeenDate[50]="";
 	char startTime[50];
@@ -323,7 +326,7 @@ int write_buffer_to_disk( CBLK wb_block ,char *chunk_path,CACHE buffer_cache) {
 
 	while(sscanf(wb_block->buf+offset,"%[^\n]\n",line) == 1 ) {
 //		printf("%s\n",line);
-		if ( sscanf(line,"%*[^|]|%[^|]|%*s",timestamp) != 1 ) {
+		if ( wb_block->buf[offset+strlen(line)] != '\n' ||    sscanf(line,"%*[^|]|%[^|]|%*s",timestamp) != 1 ) {
 			printf("LINE IS NOT COMPLETE\n");
 			break;
 		}
@@ -390,14 +393,18 @@ int write_buffer_to_disk( CBLK wb_block ,char *chunk_path,CACHE buffer_cache) {
 
 	printf("Current buf start : %d , buf end : %d\n",startOffset,offset);
 	write(1,wb_block->buf+startOffset,offset-startOffset);
-	printf("==============\n");
+	printf("+++++++++++\n");
 	close(fd);
 
 
 	memset(wb_block->buf,0,buffer_cache->cache_block_size);
-	strcpy(wb_block->buf,line);
-	printf("REMAINING BUF CONTENT : %s\n",wb_block->buf);
-        wb_block->offset = 0;
+	if ( wb_block->buf[offset+strlen(line)] != '\n') {
+		strcpy(wb_block->buf,line);
+		printf("REMAINING BUF CONTENT : %s\n",wb_block->buf);
+		wb_block->offset = strlen(line);
+	} else {
+	        wb_block->offset = 0;
+	}
 	
 }
 /*

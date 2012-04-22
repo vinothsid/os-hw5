@@ -25,9 +25,9 @@
 #include "Cache.h"
 
 
-#define LOAD_PATH "/home/gokul/Desktop/serverfilesystem"
-#define MDATA_PATH "/home/gokul/Desktop/ESS/metadata/"
-#define CHUNK_PATH "/home/gokul/Desktop/ESS/Chunks/"
+#define LOAD_PATH "/home/vino/Desktop/serverfilesystem"
+#define MDATA_PATH "/home/vino/Desktop/ESS/metadata/"
+#define CHUNK_PATH "/home/vino/Desktop/ESS/Chunks/"
 #define MDATA_CBLK_WRITE_THROUGH 1
 
 static char load_path[500];
@@ -456,7 +456,7 @@ static int lfs_write(const char *path, const char *buf, size_t size,
 		write_metadata_to_disk(wbuf_data_block->mdata,MDATA_PATH);	
 #endif
 
-		printf("Buffer contents after writing to disk:%s********",buf);
+		printf("Buffer contents after writing to disk:%s********\n",buf);
 	} else {
 		printf("appending to cache block buffer\n");
 	}

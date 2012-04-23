@@ -25,9 +25,10 @@
 #define MAX_VAL_SIZE 100
 #define MAX_MSGTYPE_SIZE 20
 #define MAX_HOSTNAME_LEN 100
+#define LIER_VNO_INCR 10
+
 char hostname[MAX_HOSTNAME_LEN];
 int serverPort;
-
 
 keyval_t keyVals[MAXKEYS];
 float replyProbability;

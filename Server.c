@@ -1,7 +1,6 @@
 #include "Server.h"
 #define DEBUG 1
 
-
 keyval_t* searchKey(char* key) {
 
 	int i=0;
@@ -113,11 +112,23 @@ int putResponse(int sock,char *key,char *val) {
 		lll_unlock( &numKeysLock );	
 		
 		initKeyValStruct(keyval);
-		resMsg[0]='0';
-		resMsg[1]= 0;
+
+		if(lier == 0 ) {
+			resMsg[0]='0';
+			resMsg[1]= 0;
+		} else {
+			printf("LIER : lieing about version number and value since no entries are present \n");
+                        sprintf(resMsg,"%d %s %slie",keyval->vno + LIER_VNO_INCR ,keyval->key,keyval->value);
+		}
 	} else {
 
-		sprintf(resMsg,"%d %s %s",keyval->vno,keyval->key,keyval->value);
+		if(lier == 0) {
+			sprintf(resMsg,"%d %s %s",keyval->vno,keyval->key,keyval->value);
+		} else {
+			printf("LIER : lieing about version number \n");
+                        sprintf(resMsg,"%d %s %s",keyval->vno + LIER_VNO_INCR ,keyval->key,keyval->value);
+			
+		}
 	}
 
 	lll_lock(&(keyval->condWaitLock));

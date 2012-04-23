@@ -24,6 +24,9 @@
 #define MAX_KEY_SIZE 100
 #define MAX_VAL_SIZE 100
 #define MAX_MSGTYPE_SIZE 20
+#define MAX_HOSTNAME_LEN 100
+char hostname[MAX_HOSTNAME_LEN];
+int serverPort;
 
 keyval_t keyVals[MAXKEYS];
 float replyProbability;

@@ -382,6 +382,16 @@ int tcpServer( int port )
                 exit(1);
         }
 */
+
+
+	FILE *fp = fopen("server_loc.txt","a");
+	if(fp != NULL ) {
+		fprintf(fp,"%s %d\n",hostname,serverPort);
+		fclose(fp);
+	} else {
+		perror("Writing to server_loc.txt failed\n");
+		exit(1);
+	}
         printf("server: waiting for connections...\n");
         free(tempPort);
 
@@ -430,11 +440,17 @@ int main(int argc,char *argv[]) {
 		exit(1);
 	}
 	
-	int serverPort = atoi(argv[1]);
+	serverPort = atoi(argv[1]);
 
 	replyProbability = atof(argv[2]);
 	lier = atoi(argv[3]);
 
+	gethostname(hostname,MAX_HOSTNAME_LEN);
+
+#ifdef DEBUG
+	printf("Host name is %s\n",hostname);
+#endif
+	
 	strcpy(keyVals[0].key,"key1");
 	strcpy(keyVals[0].value,"value1");
 	keyVals[0].lock=0;

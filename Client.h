@@ -13,11 +13,13 @@
 #define LENGTH 1024
 #define TIMEOUT 10
 #define MAX_CON 1000
+#define MAXHOSTLENGTH 1000
 
 struct sockDes {
 	int id;
         int sockfd;
 	int connectionExists;
+	char hostName[MAXHOSTLENGTH];
         struct sockaddr_in server_addr;
 
 };

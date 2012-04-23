@@ -11,6 +11,7 @@ int Nr;
 int Nw;
 int N;
 int responsesG=0;
+struct sockDes* sockfd;
 /*
 int responseClient(int sock, char* msg) {
 	char send_data[LENGTH],recv_data[LENGTH];
@@ -30,66 +31,37 @@ int selectServer() {
 
 
 
-	for(i=0;i<20;i++){
+	for(i=0;i<N;i++){
 
 		hashTable.hashMap[i].count=0;
 
 	}
-
-
-
-
-
-	for(i=0;i<20;i++){
-
-
-
+	for(i=0;i<N;i++){
 		if(keyVals_c[i].sock!=-1){
 
 			nrnwCheck++;
 
 		}
-
-		if(strcmp(msgType,"GET")==0){
-
-			if(nrnwCheck<Nr){
-
-				printf("Lesser Read Quorum\n");
-
-				exit(0);
-
-			}	
-
-		}
-
-		
-
-		else{
-
-			if(nrnwCheck<Nw){
-
-				printf("Lesser Write Quorum\n");
-
-				exit(0);
-
-			}
-
-		}
-
 	}
-
-
-
+	if(strcmp(msgType,"GET")==0){
+		if(nrnwCheck<Nr){
+			printf("Lesser Read Quorum\n");
+			exit(0);
+		}	
+	}
+	else{
+		if(nrnwCheck<Nw){
+			printf("Lesser Write Quorum\n");
+			exit(0);
+		}
+	}
 	printf("Check Value:%d\n",nrnwCheck);
+	int max=-1;
+        for(i=0;i<N;i++){
 
-
-
-	int max=1;
-
-        for(i=0;i<20;i++){
-
-                if(keyVals_c[i].sock != -1 && keyVals_c[i].vno>0){
-
+                if(keyVals_c[i].sock != -1 && keyVals_c[i].vno>=0){
+				int incrIndex=0;
+				
 				sprintf(tmp,"%s",keyVals_c[i].value);
 
 				//strcpy(hashTable.hashMap[index].keyValuePair,tmp);
@@ -113,32 +85,22 @@ int selectServer() {
 
 
 				else if(keyVals_c[i].vno == max){
-
-				
-
-					if(strcmp(hashTable.hashMap[index].keyValuePair,tmp)==0){
-
- 	                                       hashTable.hashMap[index].idx[hashTable.hashMap[index].count]=i;
-
-	      	                               hashTable.hashMap[index].count++;
+					int xy=0;
+					for(xy=0;xy<index+1;xy++) {
+						if(strcmp(hashTable.hashMap[xy].keyValuePair,tmp)==0){
+						       	hashTable.hashMap[xy].idx[hashTable.hashMap[xy].count]=i;
+						       	hashTable.hashMap[xy].count++;
+						 	incrIndex=1;
+						}
 
 					}
-
-
-
-					else{
-
+					if(incrIndex==0){
+						hashTable.hashMap[index+1].count=0;
+						strcpy(hashTable.hashMap[index+1].keyValuePair,tmp);
+						hashTable.hashMap[index+1].idx[hashTable.hashMap[index+1].count]=i;
+						hashTable.hashMap[index+1].count++;
 						index++;
-
-                                        	strcpy(hashTable.hashMap[index].keyValuePair,tmp);
-
-	                                        hashTable.hashMap[index].idx[hashTable.hashMap[index].count]=i;
-
-        	                                hashTable.hashMap[index].count++;
-
 					}
-
-			
 
 				}
 
@@ -164,25 +126,25 @@ int selectServer() {
 
 	int retVal=0, retIndex=-1;
 
-
-
 	for(i=0;i<index+1;i++){
-
 		if(hashTable.hashMap[i].count > retVal){
-
 				retIndex = i;
-
 				retVal = hashTable.hashMap[i].count;
-
 		}	
-
 	}
-
-
-
-
-
-      return hashTable.hashMap[retIndex].idx[0];
+	for(i=0;i<index+1;i++) {
+		if(hashTable.hashMap[i].count < retVal ) {
+			int x=0;
+			for(x=0;x<hashTable.hashMap[i].count;x++) {
+				int id=hashTable.hashMap[i].idx[x];
+				char str[INET_ADDRSTRLEN];
+				inet_ntop(AF_INET,&(sockfd[id].server_addr.sin_addr),str,INET_ADDRSTRLEN);
+				int port_final=ntohs(sockfd[id].server_addr.sin_port);
+				printf("retVal is %d server at %s:%d hostName %s lied\n",retVal,str,port_final,sockfd[id].hostName);
+			}
+		}
+	}
+      	return hashTable.hashMap[retIndex].idx[0];
 
 }
 
@@ -292,15 +254,16 @@ int connectThread() {
 	char** addrArray=(char**)malloc(sizeof(char*)*N);
 	int* port=(int*)malloc(sizeof(int)*N);
 	int i;
+	sockfd=(struct sockDes *)malloc(sizeof(struct sockDes)*N);
 	for(i=0;i<N;i++) {
 		addrArray[i]=malloc(sizeof(char)*64);
 		fscanf(server_loc,"%s %d",addrArray[i],&port[i]);
+		strcpy(sockfd[i].hostName,addrArray[i]);
 		printf("read addr : %s port : %d\n",addrArray[i],port[i]);
 		
 	}
 	keyVals_c=(keyval_t*)malloc((sizeof(keyval_t))*N);
 	//printf("%s\n",addrArray[0]);
-	struct sockDes* sockfd=(struct sockDes *)malloc(sizeof(struct sockDes)*N);
 	pthread_t* t=(pthread_t*)malloc(sizeof(pthread_t)*N);
 	for(i=0;i<N;i++) {
 #ifdef client
@@ -332,8 +295,10 @@ int connectThread() {
 #endif 
 	if(strcmp(msgType,"GET")==0) {	
 	/*if get was sent*/
+		printf("total no of responses : %d\n",responsesG);
 		if(responsesG<Nr) {
 		/*not enough votes for get*/
+			printf("total no of responses : %d\n",responsesG);
 			exit(1);
 		}
 		int HVNO=selectServer();
@@ -350,8 +315,10 @@ int connectThread() {
 	}
 	else if(strcmp(msgType,"PUT")==0) {
 	/*if UPDATE was sent*/
+		printf("total no of responses : %d\n",responsesG);
 		if(responsesG<Nw) {
 		/*not enough votes for put*/
+			printf("total no of responses : %d\n",responsesG);
 			exit(1);
 		}
 		int HVNO=selectServer();
@@ -359,9 +326,10 @@ int connectThread() {
 			perror("Write failure");
 			exit(1);
 		}
+		printf("HVNO is : %d\n",HVNO);
 		int new_vno=(keyVals_c[HVNO].vno)+1;
-		
 		printf("HVNO is : %d highest vno %d new_vno %d\n",HVNO,keyVals_c[HVNO].vno,new_vno);
+		
 		/*
 		 * update all sockets which responded with vote
 		 * i.e. sock in keyVals_c is not -1

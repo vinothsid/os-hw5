@@ -339,9 +339,9 @@ int tcpServer( int port )
         int threadCount=0;
         char *msg1;
         struct msgToken* msgsock;
-        int sockfd, new_fd, ret;  // listen on sock_fd, new connection on new_fd
-        struct addrinfo hints, *servinfo, *p;/* hints are hints for get  addr info servinfo is server information and p is just used as a pointer*/
-        struct sockaddr_storage their_addr; // connector's address information
+        int sockfd, new_fd, ret;  
+        struct addrinfo hints, *servinfo, *p; 
+        struct sockaddr_storage their_addr; 
         socklen_t sin_size;
         struct sigaction sa;
         int yes=1;
@@ -350,7 +350,7 @@ int tcpServer( int port )
         memset(&hints, 0, sizeof hints);
         hints.ai_family = AF_UNSPEC;
         hints.ai_socktype = SOCK_STREAM;
-        hints.ai_flags = AI_PASSIVE; // use my IP
+        hints.ai_flags = AI_PASSIVE; 
 
 
         char *tempPort = itoa(port);
@@ -379,22 +379,11 @@ int tcpServer( int port )
                 return 2;
         }
 
-        freeaddrinfo(servinfo); // all done with this structure
-
+        freeaddrinfo(servinfo); 
         if (listen(sockfd,LISTENQUEUE) == -1) {
                 perror("listen");
                 exit(1);
         }
-
-/*
-        sa.sa_handler = sigchld_handler; // reap all dead processes
-        sigemptyset(&sa.sa_mask);
-        sa.sa_flags = SA_RESTART;
-        if (sigaction(SIGCHLD, &sa, NULL) == -1) {
-                perror("sigaction");
-                exit(1);
-        }
-*/
 
 
 	FILE *fp = fopen("server_loc.txt","a");

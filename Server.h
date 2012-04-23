@@ -28,6 +28,7 @@
 char hostname[MAX_HOSTNAME_LEN];
 int serverPort;
 
+
 keyval_t keyVals[MAXKEYS];
 float replyProbability;
 int numKeys;

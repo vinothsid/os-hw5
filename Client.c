@@ -394,9 +394,9 @@ void main(int argc, char* argv[]) {
 		strcat(msgG,argv[6]);
 		strcpy(keyG,argv[5]);
 		strcpy(valG,argv[6]);
-		//printf("msgG is %s argv[6] is %s\n",msgG,argv[6]);
-		//strcpy(valG,argv[7]);
 	}
-	N=atoi(argv[3]);
+	N=atoi(argv[1]);
+	Nr=atoi(argv[2]);
+	Nw=atoi(argv[3]);
 	connectThread();
 }

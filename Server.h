@@ -27,6 +27,7 @@
 #define MAX_HOSTNAME_LEN 100
 #define LIER_VNO_INCR 10
 
+
 char hostname[MAX_HOSTNAME_LEN];
 int serverPort;
 

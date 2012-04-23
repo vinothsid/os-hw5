@@ -10,7 +10,10 @@
 #include <pthread.h>
 #include "Vote.h"
 
+#define LENGTH 1024
 #define TIMEOUT 10
+#define MAX_CON 1000
+
 struct sockDes {
 	int id;
         int sockfd;
@@ -18,6 +21,30 @@ struct sockDes {
         struct sockaddr_in server_addr;
 
 };
+
+
+
+typedef struct hashMap{
+
+        char keyValuePair[LENGTH];
+
+        int count;
+
+        int idx[MAX_CON];
+
+}HashMap;
+
+
+
+typedef struct hashTable{
+
+        HashMap hashMap[MAX_CON];
+
+}HashTable;
+
+
+
+HashTable hashTable ;
 
 keyval_t* keyVals_c;
 

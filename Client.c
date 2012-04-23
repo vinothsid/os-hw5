@@ -1,7 +1,6 @@
 #include "Client.h"
 
 #include "Util.h"
-#define LENGTH 1024
 //#define client
 //#define N 3
 char msgG[LENGTH];
@@ -18,6 +17,176 @@ int responseClient(int sock, char* msg) {
 	
 }
 */
+
+
+
+int selectServer() {
+
+    int maxIndexCount = 0, i, j, maxVno = -1, index=0;
+
+	char tmp[LENGTH];
+
+	int nrnwCheck=0;
+
+
+
+	for(i=0;i<20;i++){
+
+		hashTable.hashMap[i].count=0;
+
+	}
+
+
+
+
+
+	for(i=0;i<20;i++){
+
+
+
+		if(keyVals_c[i].sock!=-1){
+
+			nrnwCheck++;
+
+		}
+
+		if(strcmp(msgType,"GET")==0){
+
+			if(nrnwCheck<Nr){
+
+				printf("Lesser Read Quorum\n");
+
+				exit(0);
+
+			}	
+
+		}
+
+		
+
+		else{
+
+			if(nrnwCheck<Nw){
+
+				printf("Lesser Write Quorum\n");
+
+				exit(0);
+
+			}
+
+		}
+
+	}
+
+
+
+	printf("Check Value:%d\n",nrnwCheck);
+
+
+
+	int max=1;
+
+        for(i=0;i<20;i++){
+
+                if(keyVals_c[i].sock != -1 && keyVals_c[i].vno>0){
+
+				sprintf(tmp,"%s",keyVals_c[i].value);
+
+				//strcpy(hashTable.hashMap[index].keyValuePair,tmp);
+
+				if(keyVals_c[i].vno > max){
+
+					index=0;
+
+					hashTable.hashMap[index].count=0;
+
+					max = keyVals_c[i].vno;
+
+					strcpy(hashTable.hashMap[index].keyValuePair,tmp);
+
+					hashTable.hashMap[index].idx[hashTable.hashMap[index].count]=i;
+
+					hashTable.hashMap[index].count++;
+
+				}
+
+
+
+				else if(keyVals_c[i].vno == max){
+
+				
+
+					if(strcmp(hashTable.hashMap[index].keyValuePair,tmp)==0){
+
+ 	                                       hashTable.hashMap[index].idx[hashTable.hashMap[index].count]=i;
+
+	      	                               hashTable.hashMap[index].count++;
+
+					}
+
+
+
+					else{
+
+						index++;
+
+                                        	strcpy(hashTable.hashMap[index].keyValuePair,tmp);
+
+	                                        hashTable.hashMap[index].idx[hashTable.hashMap[index].count]=i;
+
+        	                                hashTable.hashMap[index].count++;
+
+					}
+
+			
+
+				}
+
+		       	}
+
+        }       
+
+
+
+	printf("Index:%d||Max:%d \n",index+1,max);
+
+
+
+	for(i=0;i<index+1;i++){
+
+		printf("Value:%s||Count:%d\n",hashTable.hashMap[i].keyValuePair, hashTable.hashMap[i].count);
+
+
+
+	}	
+
+	
+
+	int retVal=0, retIndex=-1;
+
+
+
+	for(i=0;i<index+1;i++){
+
+		if(hashTable.hashMap[i].count > retVal){
+
+				retIndex = i;
+
+				retVal = hashTable.hashMap[i].count;
+
+		}	
+
+	}
+
+
+
+
+
+      return hashTable.hashMap[retIndex].idx[0];
+
+}
+
+/*
 int selectServer() {
         int maxIndex = -1;
         int i;
@@ -36,7 +205,7 @@ int selectServer() {
         // return the index value of the server with the highest version number
         return maxIndex;        
 }
-
+*/
 void* connectTo(void* sockfd) {
 	char str[INET_ADDRSTRLEN];
 	struct sockDes sock=*(struct sockDes *)sockfd;

@@ -377,7 +377,7 @@ int connectThread() {
 		}
 		//printf("HVNO is : %d\n",HVNO);
 		new_vnoG=(keyVals_c[HVNO].vno)+1;
-		printf("HVNO is : %d highest vno %d new_vnoG %d\n",HVNO,keyVals_c[HVNO].vno,new_vnoG);
+	//	printf("HVNO is : %d highest vno %d new_vnoG %d\n",HVNO,keyVals_c[HVNO].vno,new_vnoG);
 		
 		/*
 		 * update all sockets which responded with vote

@@ -7,7 +7,8 @@ During GET:
 	Servers will not lie about the version no.
 
 For our lie detection algorithm to work the first condition is of prime importance.
-Call the portion Nr+Nw-N as "OverLap", then our algorithm can detect <(OverLap)/2 liers (Note it is strictly lesser than), in case of servers conspiring to lie. =OverLap/2 liers can be detected when the lying servers tell different lies.
+Call the portion Nr+Nw-N as "OverLap", then our algorithm can detect <(OverLap)/2 liers (Note it is strictly lesser than), in case of servers 
+conspiring to lie. =OverLap/2 liers can be detected when the lying servers tell different lies.
 
 The Scheme:
 This is based explained with an example. Let us assume 6 servers which are updated with a key k1 and value v1.

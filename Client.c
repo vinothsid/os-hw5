@@ -23,7 +23,7 @@ int responseClient(int sock, char* msg) {
 
 int selectServer() {
 
-    int maxIndexCount = 0, i, j, maxVno = -1, index=0;
+    int maxIndexCount = 0, i, j, /*maxVno = -1, */index=0;
 
 	char tmp[LENGTH];
 
@@ -57,7 +57,7 @@ int selectServer() {
 	}
 	printf("Check Value:%d\n",nrnwCheck);
 	int max=-1;
-        for(i=0;i<N;i++){
+        for(i=0;i<N && msgType[0]=='G';i++){
 
                 if(keyVals_c[i].sock != -1 && keyVals_c[i].vno>=0){
 				int incrIndex=0;
@@ -107,16 +107,39 @@ int selectServer() {
 		       	}
 
         }       
-
+	if(msgType[0]=='P') {
+		index=0;
+	}
+	int maximum=-1;
+	for(i=0;i<N && msgType[0]=='P';i++) {
+		if(keyVals_c[i].sock != -1) {
+			int incrIndex=0;
+			int ij=0;
+			for(ij=0;ij<index;ij++) {
+				if(hashTable.hashMap[ij].ver_no==keyVals_c[i].vno) {
+					hashTable.hashMap[ij].idx[hashTable.hashMap[ij].count]=i;
+					hashTable.hashMap[ij].count++;
+					incrIndex=1;
+				}
+			} 
+			if(incrIndex==0) {		
+				hashTable.hashMap[index].count=0;
+				hashTable.hashMap[index].ver_no=keyVals_c[i].vno;
+				hashTable.hashMap[index].idx[hashTable.hashMap[index].count]=i;
+				hashTable.hashMap[index].count++;
+				index++;
+			}
+		}
+	}
 
 
 	printf("Index:%d||Max:%d \n",index+1,max);
 
 
 
-	for(i=0;i<index+1;i++){
+	for(i=0;i<index;i++){
 
-		printf("Value:%s||Count:%d\n",hashTable.hashMap[i].keyValuePair, hashTable.hashMap[i].count);
+		printf("Value:%d||Count:%d\n",hashTable.hashMap[i].ver_no, hashTable.hashMap[i].count);
 
 
 
@@ -124,15 +147,18 @@ int selectServer() {
 
 	
 
-	int retVal=0, retIndex=-1;
+	int retVal=0, retIndex=-1; int maxVno=-1;
 
 	for(i=0;i<index+1;i++){
 		if(hashTable.hashMap[i].count > retVal){
 				retIndex = i;
 				retVal = hashTable.hashMap[i].count;
+				if(msgType[0]=='P') {
+					maxVno=hashTable.hashMap[i].ver_no;
+				}
 		}	
 	}
-	for(i=0;i<index+1;i++) {
+	for(i=0;i<index+1 && msgType[0]=='G';i++) {
 		if(hashTable.hashMap[i].count < retVal ) {
 			int x=0;
 			for(x=0;x<hashTable.hashMap[i].count;x++) {
@@ -144,7 +170,19 @@ int selectServer() {
 			}
 		}
 	}
-      	return hashTable.hashMap[retIndex].idx[0];
+	for(i=0;i<index+1 && msgType[0]=='P';i++) {
+      		if(hashTable.hashMap[i].count!=retVal && hashTable.hashMap[i].ver_no>maxVno) {
+			int x=0;
+			for(x=0;x<hashTable.hashMap[i].count;x++) {
+				int id=hashTable.hashMap[i].idx[x];
+				char str[INET_ADDRSTRLEN];
+				inet_ntop(AF_INET,&(sockfd[id].server_addr.sin_addr),str,INET_ADDRSTRLEN);
+				int port_final=ntohs(sockfd[id].server_addr.sin_port);
+				printf("server at %s:%d hostName %s lied\n",str,port_final,sockfd[id].hostName);
+			}
+		}
+	}
+	return hashTable.hashMap[retIndex].idx[0];
 
 }
 

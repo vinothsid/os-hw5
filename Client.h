@@ -29,10 +29,9 @@ struct sockDes {
 typedef struct hashMap{
 
         char keyValuePair[LENGTH];
-
         int count;
-
         int idx[MAX_CON];
+	int ver_no;	
 
 }HashMap;
 

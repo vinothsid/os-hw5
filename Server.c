@@ -1,6 +1,5 @@
 #include "Server.h"
-#define DEBUG 1
-
+//#define DEBUG 1
 
 keyval_t* searchKey(char* key) {
 
@@ -19,11 +18,16 @@ int updateKey(char* key, char* val, int vno) {
 	keyToUpdate = searchKey(key);
 
 	if(keyToUpdate  == NULL) {
+#ifdef DEBUG
 		printf("Error: Key: %s not found in the Key-Value Table\n",key);
+#endif
 		return -1;
 	} else if( keyToUpdate->lock ==  0 ) {
+#ifdef DEBUG
 		printf("Error: The entry for Key:%s is not locked for updating\n",key);
-		return -2;
+#endif
+	
+	return -2;
 	} else {
 		strcpy(keyToUpdate->value,val);
 		keyToUpdate->vno = vno;
@@ -36,7 +40,21 @@ int getResponse(int sock,char *key) {
 #ifdef DEBUG
 	printf("GET : key:%s\n",key);
 #endif
+
+        char ipstr[INET6_ADDRSTRLEN];
+        int port;
+        getClientDetails(sock,ipstr,&port);
+
+        struct hostent *he;
+        if (((he = gethostbyname( ipstr ) ) == NULL)) {
+                herror("gethostbyname");
+                return -2;
+        }
+        printf("contacted by %s %d for GET %s\n", he->h_name,port,key);
+
+
 	char resMsg[MAX_MSG_SIZE];
+	char sentVal[MAX_VAL_SIZE];
 	keyval_t *keyval = searchKey(key);
 	if(keyval==NULL) {
 #ifdef DEBUG
@@ -54,16 +72,20 @@ int getResponse(int sock,char *key) {
 
 		lll_unlock(&(keyval->condWaitLock));
 
-		if ( lier == 0 )
+		if ( lier == 0 ) {
 			sprintf(resMsg,"%d %s %s",keyval->vno,keyval->key,keyval->value);
-		else {
-			printf("LIER : lieing about value \n");
+			strcpy(sentVal,keyval->value);
+		} else {
+	//		printf("LIER : lieing about value \n");
 			sprintf(resMsg,"%d %s %slie",keyval->vno,keyval->key,keyval->value);
+			sprintf(sentVal,"%slie",keyval->value);
 		}
 #ifdef DEBUG
 		printf("Sending msg: %s\n",resMsg);
 #endif
 
+		printf("sending version No %d to %s %d\n",keyval->vno,he->h_name,port);
+		printf("sending key %s ,value %s to %s %d\n",key,sentVal,he->h_name,port);
 		send(sock,resMsg,strlen(resMsg)+1,0);
 //decr getters of keyval
 	}
@@ -71,7 +93,11 @@ int getResponse(int sock,char *key) {
 		lll_unlock(&(keyval->condWaitLock));
 	}
 
-	atomicDecr(&(keyval->numGetters));	
+	atomicDecr(&(keyval->numGetters));
+	
+	if( lier == 1) {
+		printf("lied to %s %d about %s\n",he->h_name,port,key);
+	}	
 }
 
 int initKeyValStruct( keyval_t *kv  ) {
@@ -84,11 +110,41 @@ int initKeyValStruct( keyval_t *kv  ) {
 	kv->condWaitLock = 1;
 
 }
+
+int getClientDetails(int s,char *ipstr,int *port) {
+	socklen_t len;
+	struct sockaddr_storage addr;
+	//char ipstr[INET6_ADDRSTRLEN];
+	//int port;
+
+	len = sizeof addr;
+	getpeername(s, (struct sockaddr*)&addr, &len);
+
+	struct sockaddr_in *sockAddr = (struct sockaddr_in *)&addr;
+	*port = ntohs(sockAddr->sin_port);
+	inet_ntop(AF_INET, &sockAddr->sin_addr, ipstr, INET6_ADDRSTRLEN );
+
+#ifdef DEBUG
+	printf("Peer IP address: %s\n", ipstr);
+	printf("Peer port      : %d\n", *port);
+#endif
+}
+
 int putResponse(int sock,char *key,char *val) {
 #ifdef DEBUG
 	printf("PUT : key:%s value:%s \n",key,val);
 #endif
 
+	char ipstr[INET6_ADDRSTRLEN];
+	int port;
+	getClientDetails(sock,ipstr,&port);
+
+	struct hostent *he;
+	if (((he = gethostbyname( ipstr ) ) == NULL)) {  
+		herror("gethostbyname");
+		return -2;
+    	}
+	printf("contacted by %s %d for PUT %s\n", he->h_name,port,key);
 	char resMsg[MAX_MSG_SIZE];
 	char msg[MAX_MSG_SIZE];
 	char msgType[MAX_MSGTYPE_SIZE];
@@ -96,6 +152,7 @@ int putResponse(int sock,char *key,char *val) {
 	char valNew[MAX_VAL_SIZE];
 	keyval_t *keyval = searchKey(key);
 	int vno;
+	int sendVno;
 
 	memset(resMsg,0,MAX_MSG_SIZE);
 	memset(msg,0,MAX_MSG_SIZE);
@@ -117,18 +174,26 @@ int putResponse(int sock,char *key,char *val) {
 		if(lier == 0 ) {
 			resMsg[0]='0';
 			resMsg[1]= 0;
+			sendVno =0;
 		} else {
+#ifdef DEBUG
 			printf("LIER : lieing about version number and value since no entries are present \n");
+#endif
                         sprintf(resMsg,"%d %s %slie",keyval->vno + LIER_VNO_INCR ,keyval->key,keyval->value);
+
+			sendVno = keyval->vno + LIER_VNO_INCR;
 		}
 	} else {
 
 		if(lier == 0) {
 			sprintf(resMsg,"%d %s %s",keyval->vno,keyval->key,keyval->value);
+			sendVno = keyval->vno;
 		} else {
+#ifdef DEBUG
 			printf("LIER : lieing about version number \n");
+#endif
                         sprintf(resMsg,"%d %s %s",keyval->vno + LIER_VNO_INCR ,keyval->key,keyval->value);
-			
+			sendVno = keyval->vno + LIER_VNO_INCR;
 		}
 	}
 
@@ -138,10 +203,12 @@ int putResponse(int sock,char *key,char *val) {
 
 		lll_unlock(&(keyval->condWaitLock));
 
+		printf("lock on %s\n",key);
 #ifdef DEBUG
 		printf("Sending msg: %s\n",resMsg);
 #endif
 
+		printf("sending version No %d to %s %d\n",sendVno,he->h_name,port);
 		send(sock,resMsg,strlen(resMsg)+1,0);
 
 		int res = recvTimeout(sock,msg,TIMEOUT,MAX_MSG_SIZE);
@@ -159,6 +226,7 @@ int putResponse(int sock,char *key,char *val) {
 				strcpy(keyval->key,keyNew);
 				updateResponse(sock,keyNew,valNew,vno);
 
+				printf("writing key %s value %s with updated version no %d\n",keyNew,valNew,vno);
 	
 				memset(msg,0,MAX_MSG_SIZE);
 
@@ -195,9 +263,7 @@ int putResponse(int sock,char *key,char *val) {
 				releaselockResponse(sock,key);
 			}
 		} else {
-#ifdef DEBUG
-			printf("PUT timedout hence releasing lock\n");
-#endif				
+			printf("PUT timedout hence releasing lock for key %s\n",key);
 
 			releaselockResponse(sock,key);
 		}		
@@ -207,6 +273,9 @@ int putResponse(int sock,char *key,char *val) {
 		lll_unlock(&(keyval->condWaitLock));
 	}
 
+	if( lier == 1) {
+		printf("lied to %s %d about %s\n",he->h_name,port,key);
+	}	
 	return 0;
 
 
@@ -281,14 +350,15 @@ int responseServer(int sock,char*  msg) {
 		printf("Invalid msgtype:%s\n",msgType);
 	}
 
-
+	
 }
 
 void *serverThread (void *a){
         int *temp = (int *)a;
         int sockDesc = *temp;
-
+#ifdef DEBUG
 	printf("Starting new thread\n");
+#endif
 	char msg[MAX_MSG_SIZE];
 	memset(msg,0,MAX_MSG_SIZE);
 	int numBytesRcvd ;
@@ -339,9 +409,9 @@ int tcpServer( int port )
         int threadCount=0;
         char *msg1;
         struct msgToken* msgsock;
-        int sockfd, new_fd, ret;  // listen on sock_fd, new connection on new_fd
-        struct addrinfo hints, *servinfo, *p;/* hints are hints for get  addr info servinfo is server information and p is just used as a pointer*/
-        struct sockaddr_storage their_addr; // connector's address information
+        int sockfd, new_fd, ret;  
+        struct addrinfo hints, *servinfo, *p; 
+        struct sockaddr_storage their_addr; 
         socklen_t sin_size;
         struct sigaction sa;
         int yes=1;
@@ -350,7 +420,7 @@ int tcpServer( int port )
         memset(&hints, 0, sizeof hints);
         hints.ai_family = AF_UNSPEC;
         hints.ai_socktype = SOCK_STREAM;
-        hints.ai_flags = AI_PASSIVE; // use my IP
+        hints.ai_flags = AI_PASSIVE; 
 
 
         char *tempPort = itoa(port);
@@ -379,22 +449,11 @@ int tcpServer( int port )
                 return 2;
         }
 
-        freeaddrinfo(servinfo); // all done with this structure
-
+        freeaddrinfo(servinfo); 
         if (listen(sockfd,LISTENQUEUE) == -1) {
                 perror("listen");
                 exit(1);
         }
-
-/*
-        sa.sa_handler = sigchld_handler; // reap all dead processes
-        sigemptyset(&sa.sa_mask);
-        sa.sa_flags = SA_RESTART;
-        if (sigaction(SIGCHLD, &sa, NULL) == -1) {
-                perror("sigaction");
-                exit(1);
-        }
-*/
 
 
 	FILE *fp = fopen("server_loc.txt","a");
@@ -405,7 +464,10 @@ int tcpServer( int port )
 		perror("Writing to server_loc.txt failed\n");
 		exit(1);
 	}
+#ifdef DEBUG
         printf("server: waiting for connections...\n");
+#endif
+
         free(tempPort);
 
         while(1) {  // main accept() loop
@@ -438,7 +500,10 @@ int isReply () {
         //srand(time(NULL));
         x=rand() % 1024;
         x=x/1024.0;
+#ifdef DEBUG
         printf("Reply Probability number: %f expected value : %f \n",x,replyProbability);
+#endif
+
         if (x < replyProbability) {
                 return 1;
         } else {

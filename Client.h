@@ -21,7 +21,7 @@ struct sockDes {
 	int connectionExists;
 	char hostName[MAXHOSTLENGTH];
         struct sockaddr_in server_addr;
-
+	char vote;
 };
 
 

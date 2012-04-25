@@ -5,6 +5,7 @@ During PUT:
 	Servers will lie only about version no. 
 During GET:
 	Servers will not lie about the version no.
+PUT and GET pair for a key at certain version no. must both have same N, Nw and Nr for this to succeed for all clients.
 
 For our lie detection algorithm to work the first condition is of prime importance.
 Call the portion Nr+Nw-N as "OverLap", then our algorithm can detect <(OverLap)/2 liers (Note it is strictly lesser than), in case of servers 

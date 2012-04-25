@@ -61,12 +61,12 @@ int getResponse(int sock,char *key) {
 
 	}
 
-	lll_lock(&(keyval->condWaitLock));
+//	lll_lock(&(keyval->condWaitLock));
 	if( keyval->lock == 0 ) {
 // incr getters of keyval
 		keyval->numGetters++;
 
-		lll_unlock(&(keyval->condWaitLock));
+//		lll_unlock(&(keyval->condWaitLock));
 
 		if ( lier == 0 ) {
 			sprintf(resMsg,"%d %s %s",keyval->vno,keyval->key,keyval->value);
@@ -86,7 +86,7 @@ int getResponse(int sock,char *key) {
 //decr getters of keyval
 	}
 	else {
-		lll_unlock(&(keyval->condWaitLock));
+	//	lll_unlock(&(keyval->condWaitLock));
 	}
 
 	atomicDecr(&(keyval->numGetters));
@@ -209,11 +209,11 @@ int putResponse(int sock,char *key,char *val) {
 		}
 	}
 
-	lll_lock(&(keyval->condWaitLock));
+	//lll_lock(&(keyval->condWaitLock));
 	if( keyval->lock == 0 && keyval->numGetters ==0 ) {
 		keyval->lock=1;
 
-		lll_unlock(&(keyval->condWaitLock));
+	//	lll_unlock(&(keyval->condWaitLock));
 
 		printf("lock on %s\n",key);
 #ifdef DEBUG
@@ -282,7 +282,7 @@ int putResponse(int sock,char *key,char *val) {
 
 	} else {
 
-		lll_unlock(&(keyval->condWaitLock));
+//		lll_unlock(&(keyval->condWaitLock));
 	}
 
 	if( lier == 1) {

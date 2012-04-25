@@ -62,25 +62,15 @@ int selectServer() {
 
                 if(keyVals_c[i].sock != -1 && keyVals_c[i].vno>=0){
 				int incrIndex=0;
-				
 				sprintf(tmp,"%s",keyVals_c[i].value);
-
 				//strcpy(hashTable.hashMap[index].keyValuePair,tmp);
-
 				if(keyVals_c[i].vno > max){
-
 					index=0;
-
 					hashTable.hashMap[index].count=0;
-
 					max = keyVals_c[i].vno;
-
 					strcpy(hashTable.hashMap[index].keyValuePair,tmp);
-
 					hashTable.hashMap[index].idx[hashTable.hashMap[index].count]=i;
-
 					hashTable.hashMap[index].count++;
-
 				}
 
 
@@ -208,6 +198,8 @@ int selectServer() {
 }
 */
 void* connectTo(void* sockfd) {
+	int rnWait=rand()%250;/* a random amount of time to sleep so that servers get contacted in a random fashion*/
+	usleep(rnWait);
 	char str[INET_ADDRSTRLEN];
 	struct sockDes sock=*(struct sockDes *)sockfd;
 	int bytes_received;
@@ -224,8 +216,7 @@ void* connectTo(void* sockfd) {
 	if(sock.connectionExists==1) {
 		printf("updating Key : <%s> with Version <%d> Value <%s> at <%s><%d>\n",keyG,new_vnoG,valG,str,ntohs(sock.server_addr.sin_port));
 	}
-	if (sock.connectionExists==0 && connect(sock.sockfd,(struct sockaddr *)&(sock.server_addr),
-                    sizeof(struct sockaddr)) == -1)
+	if (sock.connectionExists==0 && connect(sock.sockfd,(struct sockaddr *)&(sock.server_addr),sizeof(struct sockaddr)) == -1)
 	{
 		int myid=sock.id;
 		keyVals_c[myid].sock=-1;
@@ -261,6 +252,7 @@ void* connectTo(void* sockfd) {
 	/*set sock to indicate server responded*/
 	keyVals_c[myid].sock=sock.sockfd;
 	if(sock.connectionExists==0) {
+		sock.vote=1;
 		printf("vote received from <%s><%d>\n",str,ntohs(sock.server_addr.sin_port));
 	}			
 	if(strcmp(msgType,"PUT")==0) {
@@ -302,6 +294,7 @@ int connectThread() {
 		addrArray[i]=malloc(sizeof(char)*64);
 		fscanf(server_loc,"%s %d",addrArray[i],&port[i]);
 		strcpy(sockfd[i].hostName,addrArray[i]);
+		sockfd[i].vote=0;
 		//printf("read addr : %s port : %d\n",addrArray[i],port[i]);
 		
 	}
@@ -319,8 +312,11 @@ int connectThread() {
 		}
 		(sockfd+i)->server_addr.sin_family=AF_INET;
 		(sockfd+i)->server_addr.sin_port=htons(port[i]);
-		host = gethostbyname(addrArray[i]);
-		(sockfd+i)->server_addr.sin_addr = *((struct in_addr *)host->h_addr);
+		if(host = gethostbyname(addrArray[i])==NULL) {
+			perror("No such host");
+		} else {
+			(sockfd+i)->server_addr.sin_addr = *((struct in_addr *)host->h_addr);
+		}
 		bzero(&((sockfd+i)->server_addr.sin_zero),8);
 		sockfd[i].connectionExists=0; 
 		pthread_create(&t[i],NULL,connectTo,(void*)(&sockfd[i]));
@@ -337,11 +333,12 @@ int connectThread() {
 	}
 #endif 
 	for(i=0;i<N;i++) {
-		if(sockfd[i].id!=-1) {
+		if(sockfd[i].vote==1) {
 			char str[INET_ADDRSTRLEN];	
-			inet_ntop(AF_INET,&(sockfd[i].server_addr.sin_addr),str,INET_ADDRSTRLEN);
-	                int port_final=ntohs(sockfd[i].server_addr.sin_port);
-			printf("version no: <%d> at <%s> <%d>\n",keyVals_c[i].vno,str,port_final);
+			if(inet_ntop(AF_INET,&(sockfd[i].server_addr.sin_addr),str,INET_ADDRSTRLEN)!=NULL) {
+				int port_final=ntohs(sockfd[i].server_addr.sin_port);
+				printf("version no: <%d> at <%s> <%d>\n",keyVals_c[i].vno,str,port_final);
+			}
 		}
 	}
 	if(strcmp(msgType,"GET")==0) {	
@@ -403,7 +400,6 @@ int connectThread() {
 }
 
 void main(int argc, char* argv[]) {
-	
 	strcpy(msgType,argv[4]);
 	strcpy(msgG,argv[4]);
 	strcat(msgG," ");
@@ -417,6 +413,9 @@ void main(int argc, char* argv[]) {
 	N=atoi(argv[1]);
 	Nr=atoi(argv[2]);
 	Nw=atoi(argv[3]);
-	if(((Nr+Nw)> N) && (Nw >N/2.0) ) 
+	if(((Nr+Nw)> N) && (Nw >N/2.0) ) { 
 		connectThread();
+	} else {
+		printf("Wrong conditions at command line\n");
+	}
 }

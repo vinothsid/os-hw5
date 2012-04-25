@@ -214,7 +214,7 @@ void* connectTo(void* sockfd) {
                 exit(1);
         }
 	if(sock.connectionExists==1) {
-		printf("updating Key : <%s> with Version <%d> Value <%s> at <%s><%d>\n",keyG,new_vnoG,valG,str,ntohs(sock.server_addr.sin_port));
+		printf("updating Key : <%s> with Version <%d> Value <%s> at <%s><%d>\n",keyG,new_vnoG,valG,sock.hostName,ntohs(sock.server_addr.sin_port));
 	}
 	if (sock.connectionExists==0 && connect(sock.sockfd,(struct sockaddr *)&(sock.server_addr),sizeof(struct sockaddr)) == -1)
 	{
@@ -231,7 +231,7 @@ void* connectTo(void* sockfd) {
 	int rv=recvTimeout(sock.sockfd,recv_data,TIMEOUT,LENGTH);
 //#ifdef client
 	//printf("sending data %s to %s at %d\n",msgG,str,ntohs(sock.server_addr.sin_port));
-//	printf("rv is %d:data received from client is %s\n",rv, recv_data);
+	//printf("rv is %d:data received from client is %s\n",rv, recv_data);
 //#endif
 	if(rv==0 || rv==-1) {
 		/*receive timed out*/
@@ -253,7 +253,7 @@ void* connectTo(void* sockfd) {
 	keyVals_c[myid].sock=sock.sockfd;
 	if(sock.connectionExists==0) {
 		sock.vote=1;
-		printf("vote received from <%s><%d>\n",str,ntohs(sock.server_addr.sin_port));
+		printf("vote received from <%s><%d>\n",sock.hostName,ntohs(sock.server_addr.sin_port));
 	}			
 	if(strcmp(msgType,"PUT")==0) {
 		char retMsg[25];
@@ -312,11 +312,11 @@ int connectThread() {
 		}
 		(sockfd+i)->server_addr.sin_family=AF_INET;
 		(sockfd+i)->server_addr.sin_port=htons(port[i]);
-		if(host = gethostbyname(addrArray[i])==NULL) {
-			perror("No such host");
-		} else {
+		/*if(*/host = gethostbyname(addrArray[i]);/*) {*/
+		//	perror("No such host");
+		//} else {
 			(sockfd+i)->server_addr.sin_addr = *((struct in_addr *)host->h_addr);
-		}
+		//}
 		bzero(&((sockfd+i)->server_addr.sin_zero),8);
 		sockfd[i].connectionExists=0; 
 		pthread_create(&t[i],NULL,connectTo,(void*)(&sockfd[i]));
@@ -324,6 +324,7 @@ int connectThread() {
 	for(i=0;i<N;i++) {
 		pthread_join(t[i],NULL);
 	}
+	//printf("here\n");
 #ifdef client
 	for(i=0;i<N;i++) {
 		char str[INET_ADDRSTRLEN];
@@ -335,10 +336,10 @@ int connectThread() {
 	for(i=0;i<N;i++) {
 		if(sockfd[i].vote==1) {
 			char str[INET_ADDRSTRLEN];	
-			if(inet_ntop(AF_INET,&(sockfd[i].server_addr.sin_addr),str,INET_ADDRSTRLEN)!=NULL) {
+			inet_ntop(AF_INET,&(sockfd[i].server_addr.sin_addr),str,INET_ADDRSTRLEN);//!=NULL) {
 				int port_final=ntohs(sockfd[i].server_addr.sin_port);
 				printf("version no: <%d> at <%s> <%d>\n",keyVals_c[i].vno,str,port_final);
-			}
+			//}
 		}
 	}
 	if(strcmp(msgType,"GET")==0) {	
@@ -346,7 +347,7 @@ int connectThread() {
 		//printf("total no of responses : %d\n",responsesG);
 		if(responsesG<Nr) {
 		/*not enough votes for get*/
-		//	printf("total no of responses : %d\n",responsesG);
+			printf("total no of responses : %d less than read quorum\n",responsesG);
 			exit(1);
 		}
 		int HVNO=selectServer();
@@ -356,7 +357,7 @@ int connectThread() {
 		}
 		inet_ntop(AF_INET,&(sockfd[HVNO].server_addr.sin_addr),str,INET_ADDRSTRLEN);
 		int port_final=ntohs(sockfd[HVNO].server_addr.sin_port);
-		printf("highest version no at %s %d\n",str,port_final);	
+		printf("highest version no at %s %d\n",sockfd[HVNO].hostName,port_final);	
 		char* key_f=keyVals_c[HVNO].key;
 		char* val_f=keyVals_c[HVNO].value;
 		printf("Reading key/value: %s/%s\n",key_f,val_f);
@@ -366,7 +367,7 @@ int connectThread() {
 		//printf("total no of responses : %d\n",responsesG);
 		if(responsesG<Nw) {
 		/*not enough votes for put*/
-		//	printf("total no of responses : %d\n",responsesG);
+			printf("total no of responses : %d lesser than write quorum\n",responsesG);
 			exit(1);
 		}
 		int HVNO=selectServer();
@@ -376,7 +377,7 @@ int connectThread() {
 		}
 		//printf("HVNO is : %d\n",HVNO);
 		new_vnoG=(keyVals_c[HVNO].vno)+1;
-		//printf("HVNO is : %d highest vno %d new_vnoG %d\n",HVNO,keyVals_c[HVNO].vno,new_vnoG);
+		printf("HVNO is : %d highest vno %d new_vnoG %d\n",HVNO,keyVals_c[HVNO].vno,new_vnoG);
 		
 		/*
 		 * update all sockets which responded with vote
@@ -389,12 +390,14 @@ int connectThread() {
 		
 		for(i=0;i<N;i++) {
 			sockfd[i].connectionExists=1;
-			if(keyVals_c[i].sock!=-1) {
+			if(keyVals_c[i].sock!=-1 /*&& sockfd[i].vote==1*/) {
 				pthread_create(&t[i],NULL,connectTo,(void*)(&sockfd[i]));
 			}
 		}
 		for(i=0;i<N;i++) {
-			pthread_join(t[i],NULL);
+			if(keyVals_c[i].sock!=-1 /*&& sockfd[i].vote==1*/) {
+				pthread_join(t[i],NULL);
+			}
 		}
 	}
 }

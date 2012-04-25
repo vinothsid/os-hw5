@@ -11,7 +11,7 @@ Call the portion Nr+Nw-N as "OverLap", then our algorithm can detect <(OverLap)/
 conspiring to lie. =OverLap/2 liers can be detected when the lying servers tell different lies.
 
 The Scheme:
-This is based explained with an example. Let us assume 6 servers which are updated with a key k1 and value v1.
+This is best explained with an example. Let us assume 6 servers which are updated with a key k1 and value v1.
 All of them have k1 v1 pair with version no. 1. Assume Nr =5 and Nw=6, and two of the servers will lie.
 When a GET is performed lets assume only 5 servers reply, and two of them say k1 has value v1lie1 and v1lie2.
 But 3 of the 5 lying servers also contain the updated value(as all 6 servers were needed to be updated for write to succeed Nw=6).

@@ -36,21 +36,17 @@ int updateKey(char* key, char* val, int vno) {
 
 }
 
+
 int getResponse(int sock,char *key) {
 #ifdef DEBUG
 	printf("GET : key:%s\n",key);
 #endif
 
-        char ipstr[INET6_ADDRSTRLEN];
+        char hostname[NI_MAXHOST];
         int port;
-        getClientDetails(sock,ipstr,&port);
+        getClientDetails(sock,hostname,&port);
 
-        struct hostent *he;
-        if (((he = gethostbyname( ipstr ) ) == NULL)) {
-                herror("gethostbyname");
-                return -2;
-        }
-        printf("contacted by %s %d for GET %s\n", he->h_name,port,key);
+       printf("contacted by %s %d for GET %s\n", hostname,port,key);
 
 
 	char resMsg[MAX_MSG_SIZE];
@@ -84,8 +80,8 @@ int getResponse(int sock,char *key) {
 		printf("Sending msg: %s\n",resMsg);
 #endif
 
-		printf("sending version No %d to %s %d\n",keyval->vno,he->h_name,port);
-		printf("sending key %s ,value %s to %s %d\n",key,sentVal,he->h_name,port);
+		printf("sending version No %d to %s %d\n",keyval->vno,hostname,port);
+		printf("sending key %s ,value %s to %s %d\n",key,sentVal,hostname,port);
 		send(sock,resMsg,strlen(resMsg)+1,0);
 //decr getters of keyval
 	}
@@ -96,7 +92,7 @@ int getResponse(int sock,char *key) {
 	atomicDecr(&(keyval->numGetters));
 	
 	if( lier == 1) {
-		printf("lied to %s %d about %s\n",he->h_name,port,key);
+		printf("lied to %s %d about %s\n",hostname,port,key);
 	}	
 }
 
@@ -111,10 +107,10 @@ int initKeyValStruct( keyval_t *kv  ) {
 
 }
 
-int getClientDetails(int s,char *ipstr,int *port) {
+int getClientDetails(int s,char *hostname,int *port) {
 	socklen_t len;
 	struct sockaddr_storage addr;
-	//char ipstr[INET6_ADDRSTRLEN];
+	char ipstr[INET6_ADDRSTRLEN];
 	//int port;
 
 	len = sizeof addr;
@@ -124,9 +120,22 @@ int getClientDetails(int s,char *ipstr,int *port) {
 	*port = ntohs(sockAddr->sin_port);
 	inet_ntop(AF_INET, &sockAddr->sin_addr, ipstr, INET6_ADDRSTRLEN );
 
+
+	  struct sockaddr_in sa;
+	  sa.sin_family = AF_INET;
+	  inet_pton(AF_INET, ipstr , &sa.sin_addr);
+
+	  int res = getnameinfo((struct sockaddr*)&sa, sizeof(sa), hostname , NI_MAXHOST , 0 , 0, 0);
+	  if (res)
+	  {
+	    printf("Error:\n", gai_strerror(res));
+//	    exit(1);
+	  }
+
 #ifdef DEBUG
 	printf("Peer IP address: %s\n", ipstr);
 	printf("Peer port      : %d\n", *port);
+	printf("Host name : %s\n", node);
 #endif
 }
 
@@ -135,16 +144,19 @@ int putResponse(int sock,char *key,char *val) {
 	printf("PUT : key:%s value:%s \n",key,val);
 #endif
 
-	char ipstr[INET6_ADDRSTRLEN];
+	char hostname[NI_MAXHOST];
 	int port;
-	getClientDetails(sock,ipstr,&port);
+	getClientDetails(sock,hostname,&port);
 
+/*
 	struct hostent *he;
 	if (((he = gethostbyname( ipstr ) ) == NULL)) {  
 		herror("gethostbyname");
 		return -2;
     	}
-	printf("contacted by %s %d for PUT %s\n", he->h_name,port,key);
+
+*/
+	printf("contacted by %s %d for PUT %s\n", hostname,port,key);
 	char resMsg[MAX_MSG_SIZE];
 	char msg[MAX_MSG_SIZE];
 	char msgType[MAX_MSGTYPE_SIZE];
@@ -208,7 +220,7 @@ int putResponse(int sock,char *key,char *val) {
 		printf("Sending msg: %s\n",resMsg);
 #endif
 
-		printf("sending version No %d to %s %d\n",sendVno,he->h_name,port);
+		printf("sending version No %d to %s %d\n",sendVno,hostname,port);
 		send(sock,resMsg,strlen(resMsg)+1,0);
 
 		int res = recvTimeout(sock,msg,TIMEOUT,MAX_MSG_SIZE);
@@ -274,7 +286,7 @@ int putResponse(int sock,char *key,char *val) {
 	}
 
 	if( lier == 1) {
-		printf("lied to %s %d about %s\n",he->h_name,port,key);
+		printf("lied to %s %d about %s\n",hostname,port,key);
 	}	
 	return 0;
 

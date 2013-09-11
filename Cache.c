@@ -7,6 +7,14 @@
 //#include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
+/*
+ * Add some comments to switch line_no
+ *
+ */
+
+int sum (int a, int b) {
+    return (a + b)
+}
 
 CACHE  create_cache(int size,int block_size,char type) {
 	
